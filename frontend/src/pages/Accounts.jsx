@@ -3,9 +3,12 @@ import { accountsAPI } from '@/services/api';
 import toast from 'react-hot-toast';
 import AccountCard from '@/components/Accounts/AccountCard';
 import ConnectMT4Modal from '@/components/Accounts/ConnectMT4Modal';
+import useAuthStore from '@/store/useAuthStore';
 import { PlusIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 export default function Accounts() {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -79,10 +82,12 @@ export default function Accounts() {
           <h2 className="text-2xl font-bold text-slate-100">MT4 Accounts</h2>
           <p className="text-sm text-slate-400 mt-0.5">Manage your MetaTrader 4 connections</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn-primary">
-          <PlusIcon className="w-4 h-4" />
-          Connect Account
-        </button>
+        {isAdmin && (
+          <button onClick={() => setShowModal(true)} className="btn-primary">
+            <PlusIcon className="w-4 h-4" />
+            Connect Account
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -102,10 +107,12 @@ export default function Accounts() {
           <p className="text-slate-500 text-sm mb-5 max-w-sm mx-auto">
             Connect your MetaTrader 4 account to start monitoring your trading performance.
           </p>
-          <button onClick={() => setShowModal(true)} className="btn-primary mx-auto">
-            <PlusIcon className="w-4 h-4" />
-            Connect First Account
-          </button>
+          {isAdmin && (
+            <button onClick={() => setShowModal(true)} className="btn-primary mx-auto">
+              <PlusIcon className="w-4 h-4" />
+              Connect First Account
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -113,6 +120,7 @@ export default function Accounts() {
             <AccountCard
               key={account.id}
               account={account}
+              isAdmin={isAdmin}
               onSync={() => handleSync(account.id)}
               onDisconnect={() => handleDisconnect(account.id)}
               onDelete={() => handleDelete(account.id)}

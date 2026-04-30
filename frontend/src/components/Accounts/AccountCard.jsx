@@ -3,7 +3,7 @@ import { formatCurrency, formatDate } from '@/utils/format';
 import { ArrowPathIcon, XMarkIcon, ClipboardIcon, ClipboardDocumentCheckIcon, TrashIcon } from '@heroicons/react/24/outline';
 import api from '@/services/api';
 
-export default function AccountCard({ account, onSync, onDisconnect, onDelete, isSyncing }) {
+export default function AccountCard({ account, isAdmin, onSync, onDisconnect, onDelete, isSyncing }) {
   const [bridgeToken, setBridgeToken] = useState(null);
   const [loadingToken, setLoadingToken] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -87,40 +87,44 @@ export default function AccountCard({ account, onSync, onDisconnect, onDelete, i
           {account.currency} · 1:{account.leverage} · {account.broker}
         </div>
         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={handleShowToken}
-            disabled={loadingToken}
-            className="btn-secondary px-2.5 py-1.5 text-xs"
-            title="EA Bridge Token"
-          >
-            {loadingToken ? (
-              <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <span className="text-xs font-mono">EA</span>
-            )}
-          </button>
-          <button
-            onClick={onSync}
-            disabled={isSyncing}
-            className="btn-secondary px-2.5 py-1.5 text-xs"
-            title="Sync account"
-          >
-            <ArrowPathIcon className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-          </button>
-          <button
-            onClick={onDisconnect}
-            className="btn-secondary px-2.5 py-1.5 text-xs"
-            title="Disconnect"
-          >
-            <XMarkIcon className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={onDelete}
-            className="btn-danger px-2.5 py-1.5 text-xs"
-            title="Delete account"
-          >
-            <TrashIcon className="w-3.5 h-3.5" />
-          </button>
+          {isAdmin && (
+            <>
+              <button
+                onClick={handleShowToken}
+                disabled={loadingToken}
+                className="btn-secondary px-2.5 py-1.5 text-xs"
+                title="EA Bridge Token"
+              >
+                {loadingToken ? (
+                  <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <span className="text-xs font-mono">EA</span>
+                )}
+              </button>
+              <button
+                onClick={onSync}
+                disabled={isSyncing}
+                className="btn-secondary px-2.5 py-1.5 text-xs"
+                title="Sync account"
+              >
+                <ArrowPathIcon className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+              </button>
+              <button
+                onClick={onDisconnect}
+                className="btn-secondary px-2.5 py-1.5 text-xs"
+                title="Disconnect"
+              >
+                <XMarkIcon className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={onDelete}
+                className="btn-danger px-2.5 py-1.5 text-xs"
+                title="Delete account"
+              >
+                <TrashIcon className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
