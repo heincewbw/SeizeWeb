@@ -1,0 +1,14 @@
+{
+  "name": "seizeweb",
+  "version": "1.0.0",
+  "description": "SeizeWeb Investor Platform",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "scripts": {
+    "install:all": "npm --prefix backend install --omit=dev && npm --prefix frontend install",
+    "build": "npm --prefix frontend run build",
+    "start": "node backend/src/app.js"
+  }
+}
