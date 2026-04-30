@@ -222,5 +222,8 @@ string EscapeJson(string s)
 {
    StringReplace(s, "\\", "\\\\");
    StringReplace(s, "\"", "\\\"");
+   StringReplace(s, "\n", "\\n");
+   StringReplace(s, "\r", "\\r");
+   StringReplace(s, "\t", "\\t");
    return s;
 }
