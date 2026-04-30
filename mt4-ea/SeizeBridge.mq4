@@ -24,10 +24,12 @@ input string  BridgeToken  = "";                       // Bridge token from Seiz
 input int     PushInterval = 30;                       // Push interval in seconds
 input bool    PushHistory  = true;                     // Send trade history on first push
 input int     MaxHistory   = 500;                      // Max history trades to send (0 = unlimited)
+input bool    CentsAccount = false;                    // Divide all monetary values by 100 (cents accounts)
 
 // Global state
 datetime gLastPush    = 0;
 bool     gHistorySent = false;
+double   gDivisor     = 1.0;
 
 //--- Init
 int OnInit()
@@ -52,6 +54,7 @@ void OnTick()
 {
    if(TimeCurrent() - gLastPush < PushInterval) return;
    gLastPush = TimeCurrent();
+   gDivisor = CentsAccount ? 100.0 : 1.0;
 
    string posJson  = BuildPositionsJson();
    string histJson = "[]";
@@ -72,11 +75,12 @@ void OnTick()
    payload += ",\"login\":\""      + login + "\"";
    payload += ",\"server\":\""     + EscapeJson(server) + "\"";
    payload += ",\"account_info\":{";
-   payload += "\"balance\":"       + SafeNum(AccountBalance(),   2);
-   payload += ",\"equity\":"       + SafeNum(AccountEquity(),    2);
-   payload += ",\"margin\":"       + SafeNum(AccountMargin(),    2);
-   payload += ",\"freeMargin\":"   + SafeNum(AccountFreeMargin(),2);
-   payload += ",\"profit\":"       + SafeNum(AccountProfit(),    2);
+   double divisor = gDivisor;
+   payload += "\"balance\":"       + SafeNum(AccountBalance()    / divisor, 2);
+   payload += ",\"equity\":"       + SafeNum(AccountEquity()     / divisor, 2);
+   payload += ",\"margin\":"       + SafeNum(AccountMargin()     / divisor, 2);
+   payload += ",\"freeMargin\":"   + SafeNum(AccountFreeMargin() / divisor, 2);
+   payload += ",\"profit\":"       + SafeNum(AccountProfit()     / divisor, 2);
    payload += ",\"name\":\""       + EscapeJson(AccountName())    + "\"";
    payload += ",\"broker\":\""     + EscapeJson(AccountCompany()) + "\"";
    payload += ",\"currency\":\""   + AccountCurrency()            + "\"";
@@ -152,8 +156,8 @@ string BuildPositionsJson()
       arr += ",\"currentPrice\":" + SafeNum(curPrice,           5);
       arr += ",\"stopLoss\":"     + SafeNum(OrderStopLoss(),    5);
       arr += ",\"takeProfit\":"   + SafeNum(OrderTakeProfit(),  5);
-      arr += ",\"profit\":"       + SafeNum(OrderProfit(),      2);
-      arr += ",\"swap\":"         + SafeNum(OrderSwap(),        2);
+      arr += ",\"profit\":"       + SafeNum(OrderProfit() / gDivisor, 2);
+      arr += ",\"swap\":"         + SafeNum(OrderSwap()   / gDivisor, 2);
       arr += ",\"openTime\":"     + IntegerToString(OrderOpenTime());
       arr += ",\"comment\":\"\"";
       arr += "}";
@@ -189,9 +193,9 @@ string BuildHistoryJson(datetime fromTime)
       arr += ",\"closePrice\":" + SafeNum(OrderClosePrice(), 5);
       arr += ",\"stopLoss\":"   + SafeNum(OrderStopLoss(),   5);
       arr += ",\"takeProfit\":" + SafeNum(OrderTakeProfit(), 5);
-      arr += ",\"profit\":"     + SafeNum(OrderProfit(),     2);
-      arr += ",\"commission\":" + SafeNum(OrderCommission(), 2);
-      arr += ",\"swap\":"       + SafeNum(OrderSwap(),       2);
+      arr += ",\"profit\":"     + SafeNum(OrderProfit()     / gDivisor, 2);
+      arr += ",\"commission\":" + SafeNum(OrderCommission() / gDivisor, 2);
+      arr += ",\"swap\":"       + SafeNum(OrderSwap()       / gDivisor, 2);
       arr += ",\"openTime\":"   + IntegerToString(OrderOpenTime());
       arr += ",\"closeTime\":"  + IntegerToString(OrderCloseTime());
       arr += ",\"comment\":\"\"";
