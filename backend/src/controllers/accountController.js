@@ -1,6 +1,5 @@
 const supabase = require('../config/supabase');
 const logger = require('../config/logger');
-const mt4Bridge = require('../services/mt4Bridge');
 
 // GET /api/accounts
 const getAccounts = async (req, res) => {
@@ -106,8 +105,6 @@ const disconnectAccount = async (req, res) => {
       return res.status(404).json({ error: 'Account not found' });
     }
 
-    await mt4Bridge.disconnectAccount(account.login, account.server);
-
     const { error } = await supabase
       .from('mt4_accounts')
       .update({ is_connected: false })
@@ -138,39 +135,8 @@ const syncAccount = async (req, res) => {
       return res.status(404).json({ error: 'Account not found' });
     }
 
-    const mt4Data = await mt4Bridge.getAccountInfo(account.login, account.server);
-
-    if (!mt4Data.success) {
-      return res.status(400).json({ error: mt4Data.error || 'Failed to sync account' });
-    }
-
-    const { data: updated, error: updateError } = await supabase
-      .from('mt4_accounts')
-      .update({
-        balance: mt4Data.balance,
-        equity: mt4Data.equity,
-        margin: mt4Data.margin,
-        free_margin: mt4Data.freeMargin,
-        profit: mt4Data.profit,
-        is_connected: true,
-        last_synced: new Date().toISOString(),
-      })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (updateError) throw updateError;
-
-    // Save equity snapshot for chart
-    await supabase.from('equity_snapshots').insert({
-      mt4_account_id: id,
-      user_id: req.user.id,
-      balance: mt4Data.balance,
-      equity: mt4Data.equity,
-      profit: mt4Data.profit,
-    });
-
-    return res.json({ message: 'Account synced successfully', account: updated });
+    // Data is pushed by EA — just return current DB state
+    return res.json({ message: 'Account data is updated by EA automatically', account });
   } catch (err) {
     logger.error('SyncAccount exception:', err);
     return res.status(500).json({ error: 'Failed to sync account' });

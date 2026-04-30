@@ -151,39 +151,16 @@ const startRealtimeSync = async () => {
 
       if (!accounts || accounts.length === 0) return;
 
+      // Data is pushed by EA via /api/mt4/push — no polling needed here
       for (const account of accounts) {
-        try {
-          const info = await mt4Bridge.getAccountInfo(account.login, account.server);
-          if (info.success) {
-            await supabase
-              .from('mt4_accounts')
-              .update({
-                balance: info.balance,
-                equity: info.equity,
-                margin: info.margin,
-                free_margin: info.freeMargin,
-                profit: info.profit,
-                last_synced: new Date().toISOString(),
-              })
-              .eq('id', account.id);
-
-            // Emit real-time update to subscribed clients
-            io.to(`user:${account.user_id}`).emit('account_update', {
-              accountId: account.id,
-              ...info,
-            });
-
-            // Fetch and emit open positions
-            const posResult = await mt4Bridge.getOpenPositions(account.login, account.server);
-            if (posResult.success) {
-              io.to(`account:${account.id}`).emit('positions_update', {
-                accountId: account.id,
-                positions: posResult.positions,
-              });
-            }
-          }
-        } catch (syncErr) {
-          logger.error(`Sync error for account ${account.id}:`, syncErr.message);
+        const { positionCache } = require('./controllers/mt4PushController');
+        const cacheKey = `${account.login}:${account.server}`;
+        const cached = positionCache.get(cacheKey);
+        if (cached) {
+          io.to(`account:${account.id}`).emit('positions_update', {
+            accountId: account.id,
+            positions: cached.positions,
+          });
         }
       }
     } catch (err) {
