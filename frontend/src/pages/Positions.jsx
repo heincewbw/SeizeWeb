@@ -1,13 +1,44 @@
 import { useEffect, useState } from 'react';
 import { positionsAPI } from '@/services/api';
 import toast from 'react-hot-toast';
-import { formatCurrency, formatDate } from '@/utils/format';
+import { formatCurrency } from '@/utils/format';
 import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
 const typeColors = {
   BUY: 'badge-green',
   SELL: 'badge-red',
 };
+
+function aggregatePositions(positions) {
+  const map = {};
+  for (const p of positions) {
+    const key = `${p.symbol}|${p.type}`;
+    if (!map[key]) {
+      map[key] = {
+        symbol: p.symbol,
+        type: p.type,
+        count: 0,
+        lots: 0,
+        profit: 0,
+        swap: 0,
+        weightedPrice: 0,
+      };
+    }
+    const g = map[key];
+    // weighted average open price by lots
+    g.weightedPrice += (p.openPrice || 0) * (p.lots || 0);
+    g.lots += p.lots || 0;
+    g.profit += p.profit || 0;
+    g.swap += p.swap || 0;
+    g.count++;
+    // keep latest currentPrice
+    g.currentPrice = p.currentPrice;
+  }
+  return Object.values(map).map((g) => ({
+    ...g,
+    avgOpenPrice: g.lots > 0 ? g.weightedPrice / g.lots : 0,
+  })).sort((a, b) => a.symbol.localeCompare(b.symbol) || a.type.localeCompare(b.type));
+}
 
 export default function Positions() {
   const [positions, setPositions] = useState([]);
@@ -30,6 +61,7 @@ export default function Positions() {
   };
 
   const totalProfit = positions.reduce((sum, p) => sum + (p.profit || 0), 0);
+  const grouped = aggregatePositions(positions);
 
   return (
     <div className="space-y-6">
@@ -54,7 +86,7 @@ export default function Positions() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-700">
-                {['Ticket', 'Symbol', 'Type', 'Lots', 'Open Price', 'Current', 'S/L', 'T/P', 'Swap', 'Profit', 'Open Time'].map((h) => (
+                {['Symbol', 'Type', 'Positions', 'Total Lots', 'Avg Open Price', 'Current Price', 'Swap', 'Floating P/L'].map((h) => (
                   <th key={h} className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">
                     {h}
                   </th>
@@ -65,43 +97,48 @@ export default function Positions() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 11 }).map((_, j) => (
+                    {Array.from({ length: 8 }).map((_, j) => (
                       <td key={j} className="px-4 py-3">
                         <div className="h-4 bg-slate-700 rounded animate-pulse" />
                       </td>
                     ))}
                   </tr>
                 ))
-              ) : positions.length === 0 ? (
+              ) : grouped.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="text-center py-16 text-slate-500">
+                  <td colSpan={8} className="text-center py-16 text-slate-500">
                     No open positions found
                   </td>
                 </tr>
               ) : (
-                positions.map((pos) => (
-                  <tr key={pos.ticket} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="px-4 py-3 text-xs font-mono text-slate-400">{pos.ticket}</td>
-                    <td className="px-4 py-3 font-semibold text-slate-100">{pos.symbol}</td>
+                grouped.map((g) => (
+                  <tr key={`${g.symbol}|${g.type}`} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="px-4 py-3 font-semibold text-slate-100">{g.symbol}</td>
                     <td className="px-4 py-3">
-                      <span className={typeColors[pos.type] || 'badge-yellow'}>{pos.type}</span>
+                      <span className={typeColors[g.type] || 'badge-yellow'}>{g.type}</span>
                     </td>
-                    <td className="px-4 py-3 font-mono text-slate-300">{pos.lots?.toFixed(2)}</td>
-                    <td className="px-4 py-3 font-mono text-slate-300">{pos.openPrice?.toFixed(5)}</td>
-                    <td className="px-4 py-3 font-mono text-slate-100">{pos.currentPrice?.toFixed(5)}</td>
-                    <td className="px-4 py-3 font-mono text-slate-400">{pos.stopLoss > 0 ? pos.stopLoss.toFixed(5) : '—'}</td>
-                    <td className="px-4 py-3 font-mono text-slate-400">{pos.takeProfit > 0 ? pos.takeProfit.toFixed(5) : '—'}</td>
-                    <td className="px-4 py-3 font-mono text-slate-400">{pos.swap?.toFixed(2)}</td>
-                    <td className={`px-4 py-3 font-mono font-semibold ${pos.profit >= 0 ? 'text-brand-400' : 'text-danger-400'}`}>
-                      {formatCurrency(pos.profit)}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
-                      {formatDate(pos.openTime)}
+                    <td className="px-4 py-3 text-slate-400 text-sm">{g.count}</td>
+                    <td className="px-4 py-3 font-mono text-slate-300">{g.lots.toFixed(2)}</td>
+                    <td className="px-4 py-3 font-mono text-slate-300">{g.avgOpenPrice.toFixed(5)}</td>
+                    <td className="px-4 py-3 font-mono text-slate-100">{g.currentPrice?.toFixed(5) ?? '—'}</td>
+                    <td className="px-4 py-3 font-mono text-slate-400">{g.swap.toFixed(2)}</td>
+                    <td className={`px-4 py-3 font-mono font-semibold ${g.profit >= 0 ? 'text-brand-400' : 'text-danger-400'}`}>
+                      {formatCurrency(g.profit)}
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
+            {grouped.length > 0 && (
+              <tfoot>
+                <tr className="border-t border-slate-700 bg-slate-800/30">
+                  <td colSpan={7} className="px-4 py-3 text-sm font-semibold text-slate-400">Total</td>
+                  <td className={`px-4 py-3 font-mono font-bold ${totalProfit >= 0 ? 'text-brand-400' : 'text-danger-400'}`}>
+                    {formatCurrency(totalProfit)}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>
