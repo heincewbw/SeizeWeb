@@ -195,7 +195,7 @@ string BuildHistoryJson(datetime fromTime)
       arr += ",\"swap\":"       + DoubleToString(OrderSwap(),       2);
       arr += ",\"openTime\":"   + IntegerToString(OrderOpenTime());
       arr += ",\"closeTime\":"  + IntegerToString(OrderCloseTime());
-      arr += ",\"comment\":\""  + EscapeJson(OrderComment()) + "\"";
+      arr += ",\"comment\":\"\"";
       arr += "}";
    }
    arr += "]";
@@ -217,13 +217,18 @@ string TypeToStr(int type)
    }
 }
 
-//--- Helper: escape JSON string
+//--- Helper: escape JSON string - keep ONLY ASCII printable, escape " and \
 string EscapeJson(string s)
 {
-   StringReplace(s, "\\", "\\\\");
-   StringReplace(s, "\"", "\\\"");
-   StringReplace(s, "\n", "\\n");
-   StringReplace(s, "\r", "\\r");
-   StringReplace(s, "\t", "\\t");
-   return s;
+   string result = "";
+   int len = StringLen(s);
+   for(int i = 0; i < len; i++)
+   {
+      ushort c = StringGetChar(s, i);
+      if(c == 0x22)                  { result += "\\\""; continue; }  // "
+      if(c == 0x5C)                  { result += "\\\\"; continue; }  // backslash
+      if(c >= 0x20 && c <= 0x7E)     { result += ShortToString(c);   continue; } // printable ASCII
+      // strip everything else: control chars, non-ASCII, etc.
+   }
+   return result;
 }
