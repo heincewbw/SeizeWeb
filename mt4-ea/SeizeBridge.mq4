@@ -156,7 +156,7 @@ string BuildPositionsJson()
       arr += ",\"profit\":"       + SafeNum(OrderProfit(),      2);
       arr += ",\"swap\":"         + SafeNum(OrderSwap(),        2);
       arr += ",\"openTime\":"     + IntegerToString(OrderOpenTime());
-      arr += ",\"comment\":\""    + EscapeJson(OrderComment()) + "\"";
+      arr += ",\"comment\":\"\"";
       arr += "}";
    }
    arr += "]";
