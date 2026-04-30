@@ -21,10 +21,10 @@
 // Input parameters
 input string  ServerUrl    = "http://127.0.0.1:5000"; // Backend server URL
 input string  BridgeToken  = "";                       // Bridge token from SeizeWeb UI
-input int     PushInterval = 30;                       // Push interval in seconds
+input int     PushInterval = 300;                      // Push interval in seconds
 input bool    PushHistory  = true;                     // Send trade history on first push
 input int     MaxHistory   = 500;                      // Max history trades to send (0 = unlimited)
-input bool    CentsAccount = false;                    // Divide all monetary values by 100 (cents accounts)
+input bool    CentsAccount = true;                     // Divide all monetary values by 100 (cents accounts)
 
 // Global state
 datetime gLastPush    = 0;
