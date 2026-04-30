@@ -126,9 +126,3 @@ export default function ConnectMT4Modal({ onClose, onSuccess }) {
     </div>
   );
 }
-
-        </form>
-      </div>
-    </div>
-  );
-}
