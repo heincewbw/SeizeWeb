@@ -65,6 +65,27 @@ CREATE TABLE IF NOT EXISTS trade_history (
   UNIQUE(mt4_account_id, ticket)
 );
 
+-- ─── Open Positions ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS open_positions (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  mt4_account_id  UUID NOT NULL REFERENCES mt4_accounts(id) ON DELETE CASCADE,
+  user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  ticket          BIGINT NOT NULL,
+  symbol          TEXT NOT NULL,
+  type            TEXT NOT NULL,
+  lots            DECIMAL(10,2),
+  open_price      DECIMAL(18,5),
+  current_price   DECIMAL(18,5),
+  stop_loss       DECIMAL(18,5) DEFAULT 0,
+  take_profit     DECIMAL(18,5) DEFAULT 0,
+  profit          DECIMAL(18,2) DEFAULT 0,
+  swap            DECIMAL(18,2) DEFAULT 0,
+  open_time       TIMESTAMPTZ,
+  comment         TEXT,
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(mt4_account_id, ticket)
+);
+
 -- ─── Equity Snapshots (for charts) ──────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS equity_snapshots (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

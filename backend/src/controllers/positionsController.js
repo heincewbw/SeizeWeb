@@ -7,7 +7,7 @@ const getOpenPositions = async (req, res) => {
   const { account_id } = req.query;
 
   try {
-    // Get user's accounts
+    // Get user's connected accounts
     let accountQuery = supabase
       .from('mt4_accounts')
       .select('id, login, server')
@@ -25,22 +25,52 @@ const getOpenPositions = async (req, res) => {
       return res.json({ positions: [] });
     }
 
-    // Fetch positions: use push cache if available, else fall back to mt4Bridge (mock)
+    const accountIds = accounts.map((a) => a.id);
+
+    // Read from DB (persistent across restarts)
+    let { data: dbPositions, error: posErr } = await supabase
+      .from('open_positions')
+      .select('*')
+      .in('mt4_account_id', accountIds)
+      .order('open_time', { ascending: false });
+
+    if (posErr) throw posErr;
+
+    if (dbPositions && dbPositions.length > 0) {
+      // Normalise field names to match frontend expectations
+      const accountMap = Object.fromEntries(accounts.map((a) => [a.id, a]));
+      const positions = dbPositions.map((p) => ({
+        ticket: p.ticket,
+        symbol: p.symbol,
+        type: p.type,
+        lots: p.lots,
+        openPrice: p.open_price,
+        currentPrice: p.current_price,
+        stopLoss: p.stop_loss,
+        takeProfit: p.take_profit,
+        profit: p.profit,
+        swap: p.swap,
+        openTime: p.open_time ? Math.floor(new Date(p.open_time).getTime() / 1000) : null,
+        comment: p.comment,
+        account_id: p.mt4_account_id,
+        login: accountMap[p.mt4_account_id]?.login,
+        server: accountMap[p.mt4_account_id]?.server,
+      }));
+      return res.json({ positions });
+    }
+
+    // Fall back to in-memory cache (first push after server start)
     const allPositions = [];
     for (const account of accounts) {
       const cacheKey = `${account.login}:${account.server}`;
       const cached = positionCache.get(cacheKey);
-
       if (cached) {
-        const positionsWithAccount = cached.positions.map((p) => ({
+        allPositions.push(...cached.positions.map((p) => ({
           ...p,
           account_id: account.id,
           login: account.login,
           server: account.server,
-        }));
-        allPositions.push(...positionsWithAccount);
-      } else {
-        // No EA push yet — return empty (EA will push data shortly)
+        })));
       }
     }
 

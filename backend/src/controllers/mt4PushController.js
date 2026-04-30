@@ -123,8 +123,9 @@ const receiveMT4Push = async (req, res) => {
       if (snapErr) logger.error('mt4Push insertSnapshot error:', snapErr);
     }
 
-    // Cache open positions in memory
+    // Persist open positions to DB (replace all for this account)
     if (positions && Array.isArray(positions)) {
+      // Also update in-memory cache for fast reads
       const cacheKey = `${String(login)}:${server}`;
       positionCache.set(cacheKey, {
         account_id: account.id,
@@ -133,6 +134,35 @@ const receiveMT4Push = async (req, res) => {
         positions,
         updated_at: now,
       });
+
+      // Delete all existing positions for this account, then insert current ones
+      const { error: delErr } = await supabase
+        .from('open_positions')
+        .delete()
+        .eq('mt4_account_id', account.id);
+      if (delErr) logger.error('mt4Push deletePositions error:', delErr);
+
+      if (positions.length > 0) {
+        const posRows = positions.map((p) => ({
+          mt4_account_id: account.id,
+          user_id: account.user_id,
+          ticket: p.ticket,
+          symbol: p.symbol,
+          type: p.type,
+          lots: p.lots,
+          open_price: p.openPrice,
+          current_price: p.currentPrice,
+          stop_loss: p.stopLoss || 0,
+          take_profit: p.takeProfit || 0,
+          profit: p.profit,
+          swap: p.swap || 0,
+          open_time: p.openTime ? new Date(Number(p.openTime) * 1000).toISOString() : null,
+          comment: p.comment || '',
+          updated_at: now,
+        }));
+        const { error: insErr } = await supabase.from('open_positions').insert(posRows);
+        if (insErr) logger.error('mt4Push insertPositions error:', insErr);
+      }
     }
 
     // Save trade history (upsert)
