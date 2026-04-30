@@ -135,8 +135,19 @@ const syncAccount = async (req, res) => {
       return res.status(404).json({ error: 'Account not found' });
     }
 
-    // Data is pushed by EA — just return current DB state
-    return res.json({ message: 'Account data is updated by EA automatically', account });
+    // Data is kept up-to-date by the EA push — just return latest from DB
+    // Also save equity snapshot if account has balance data
+    if (account.balance != null) {
+      await supabase.from('equity_snapshots').insert({
+        mt4_account_id: id,
+        user_id: req.user.id,
+        balance: account.balance,
+        equity: account.equity,
+        profit: account.profit,
+      });
+    }
+
+    return res.json({ message: 'Account synced successfully', account });
   } catch (err) {
     logger.error('SyncAccount exception:', err);
     return res.status(500).json({ error: 'Failed to sync account' });

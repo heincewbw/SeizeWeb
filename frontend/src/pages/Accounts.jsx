@@ -39,8 +39,9 @@ export default function Accounts() {
   const handleSync = async (id) => {
     setSyncing(id);
     try {
-      const { data } = await accountsAPI.sync(id);
-      setAccounts((prev) => prev.map((a) => (a.id === id ? data.account : a)));
+      await accountsAPI.sync(id);
+      // Re-fetch all accounts to get latest data from DB (updated by EA push)
+      await loadAccounts();
       toast.success('Account synced');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Sync failed');
