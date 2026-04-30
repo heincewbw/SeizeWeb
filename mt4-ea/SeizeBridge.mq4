@@ -23,6 +23,7 @@ input string  ServerUrl    = "http://127.0.0.1:5000"; // Backend server URL
 input string  BridgeToken  = "";                       // Bridge token from SeizeWeb UI
 input int     PushInterval = 30;                       // Push interval in seconds
 input bool    PushHistory  = true;                     // Send trade history on first push
+input int     MaxHistory   = 500;                      // Max history trades to send (0 = unlimited)
 
 // Global state
 datetime gLastPush    = 0;
@@ -37,7 +38,7 @@ int OnInit()
       return(INIT_FAILED);
    }
    Print("[SeizeBridge] Mulai. Server=", ServerUrl, " Login=", AccountNumber());
-   EventSetMillisecondTimer(500);
+   EventSetTimer(1);
    return(INIT_SUCCEEDED);
 }
 
@@ -168,14 +169,17 @@ string BuildHistoryJson(datetime fromTime)
    string arr  = "[";
    bool   first = true;
 
+   int count = 0;
    for(int i = OrdersHistoryTotal() - 1; i >= 0; i--)
    {
       if(!OrderSelect(i, SELECT_BY_POS, MODE_HISTORY)) continue;
       if(OrderCloseTime() < fromTime) continue;
       if(OrderType() > OP_SELL) continue;
+      if(MaxHistory > 0 && count >= MaxHistory) break;
 
       if(!first) arr += ",";
       first = false;
+      count++;
 
       arr += "{";
       arr += "\"ticket\":"      + IntegerToString(OrderTicket());

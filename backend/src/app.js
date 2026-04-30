@@ -133,9 +133,12 @@ app.use((req, res) => {
 
 // Global error handler
 app.use((err, req, res, next) => {
-  logger.error('Unhandled error:', err);
-  res.status(500).json({
-    error: process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message,
+  const status = err.status || err.statusCode || 500;
+  logger.error(`Unhandled error [${status}]:`, err.message || err);
+  res.status(status).json({
+    error: status === 500 && process.env.NODE_ENV === 'production'
+      ? 'Internal server error'
+      : err.message || 'Unknown error',
   });
 });
 
