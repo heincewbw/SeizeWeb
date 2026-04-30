@@ -156,9 +156,6 @@ export default function ConnectMT4Modal({ onClose, onSuccess }) {
   );
 }
 
-
-export default function ConnectMT4Modal({ onClose, onSuccess }) {
-  const [form, setForm] = useState({ login: '', password: '', server: '', account_name: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
