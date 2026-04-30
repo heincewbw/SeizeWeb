@@ -99,7 +99,8 @@ void SendPush(string payload)
    string resultHeaders;
 
    StringToCharArray(payload, postData, 0, StringLen(payload));
-   ArrayResize(postData, ArraySize(postData) - 1);
+   // NOTE: jangan ArrayResize(-1) — count eksplisit tidak menambah null terminator,
+   // jadi resize akan memotong byte real (penutup '}' JSON)
 
    int res = WebRequest("POST", url, headers, 5000, postData, resultData, resultHeaders);
 
