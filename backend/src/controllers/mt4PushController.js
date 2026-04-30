@@ -112,15 +112,27 @@ const receiveMT4Push = async (req, res) => {
         .eq('id', account.id);
       if (updateErr) logger.error('mt4Push updateAccount error:', updateErr);
 
-      // Save equity snapshot
-      const { error: snapErr } = await supabase.from('equity_snapshots').insert({
-        mt4_account_id: account.id,
-        user_id: account.user_id,
-        balance: account_info.balance,
-        equity: account_info.equity,
-        profit: account_info.profit,
-      });
-      if (snapErr) logger.error('mt4Push insertSnapshot error:', snapErr);
+      // Save equity snapshot max 2x per day (every 12 hours)
+      const { data: lastSnap } = await supabase
+        .from('equity_snapshots')
+        .select('created_at')
+        .eq('mt4_account_id', account.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      const twelveHours = 12 * 60 * 60 * 1000;
+      const lastSnapTime = lastSnap ? new Date(lastSnap.created_at).getTime() : 0;
+      if (Date.now() - lastSnapTime >= twelveHours) {
+        const { error: snapErr } = await supabase.from('equity_snapshots').insert({
+          mt4_account_id: account.id,
+          user_id: account.user_id,
+          balance: account_info.balance,
+          equity: account_info.equity,
+          profit: account_info.profit,
+        });
+        if (snapErr) logger.error('mt4Push insertSnapshot error:', snapErr);
+      }
     }
 
     // Persist open positions to DB (replace all for this account)
