@@ -25,20 +25,13 @@ const getAccounts = async (req, res) => {
 
 // POST /api/accounts/connect
 const connectAccount = async (req, res) => {
-  const { login, password, server, account_name } = req.body;
+  const { login, server, account_name } = req.body;
 
-  if (!login || !password || !server) {
-    return res.status(400).json({ error: 'login, password, and server are required' });
+  if (!login || !server) {
+    return res.status(400).json({ error: 'login and server are required' });
   }
 
   try {
-    // Attempt MT4 connection via bridge
-    const mt4Data = await mt4Bridge.connectAccount(login, password, server);
-
-    if (!mt4Data.success) {
-      return res.status(400).json({ error: mt4Data.error || 'Failed to connect to MT4 account' });
-    }
-
     // Check if account already exists for this user
     const { data: existing } = await supabase
       .from('mt4_accounts')
@@ -53,17 +46,8 @@ const connectAccount = async (req, res) => {
       const { data, error } = await supabase
         .from('mt4_accounts')
         .update({
-          account_name: account_name || mt4Data.name,
-          broker: mt4Data.broker,
-          currency: mt4Data.currency,
-          leverage: mt4Data.leverage,
-          balance: mt4Data.balance,
-          equity: mt4Data.equity,
-          margin: mt4Data.margin,
-          free_margin: mt4Data.freeMargin,
-          profit: mt4Data.profit,
-          is_connected: true,
-          last_synced: new Date().toISOString(),
+          account_name: account_name || `Account ${login}`,
+          is_connected: false,
         })
         .eq('id', existing.id)
         .select()
@@ -78,17 +62,15 @@ const connectAccount = async (req, res) => {
           user_id: req.user.id,
           login: String(login),
           server,
-          broker: mt4Data.broker,
-          account_name: account_name || mt4Data.name || `Account ${login}`,
-          currency: mt4Data.currency || 'USD',
-          leverage: mt4Data.leverage || 100,
-          balance: mt4Data.balance || 0,
-          equity: mt4Data.equity || 0,
-          margin: mt4Data.margin || 0,
-          free_margin: mt4Data.freeMargin || 0,
-          profit: mt4Data.profit || 0,
-          is_connected: true,
-          last_synced: new Date().toISOString(),
+          account_name: account_name || `Account ${login}`,
+          currency: 'USD',
+          leverage: 100,
+          balance: 0,
+          equity: 0,
+          margin: 0,
+          free_margin: 0,
+          profit: 0,
+          is_connected: false,
         })
         .select()
         .single();
@@ -97,11 +79,14 @@ const connectAccount = async (req, res) => {
       account = data;
     }
 
-    logger.info(`MT4 account connected: login=${login}, server=${server}, user=${req.user.id}`);
-    return res.status(201).json({ message: 'MT4 account connected successfully', account });
+    logger.info(`MT4 account registered: login=${login}, server=${server}, user=${req.user.id}`);
+    return res.status(201).json({
+      message: 'MT4 account registered. Install SeizeBridge EA and enter the bridge token to activate.',
+      account,
+    });
   } catch (err) {
     logger.error('ConnectAccount exception:', err);
-    return res.status(500).json({ error: 'Failed to connect MT4 account' });
+    return res.status(500).json({ error: 'Failed to register MT4 account' });
   }
 };
 

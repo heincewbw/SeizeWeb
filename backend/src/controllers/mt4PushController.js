@@ -76,13 +76,12 @@ const receiveMT4Push = async (req, res) => {
   }
 
   try {
-    // Find account
+    // Find account (connected OR not — EA push activates it)
     const { data: account, error: accError } = await supabase
       .from('mt4_accounts')
-      .select('id, user_id')
+      .select('id, user_id, is_connected')
       .eq('login', String(login))
       .eq('server', server)
-      .eq('is_connected', true)
       .single();
 
     if (accError || !account) {
@@ -91,7 +90,7 @@ const receiveMT4Push = async (req, res) => {
 
     const now = new Date().toISOString();
 
-    // Update account balance/equity
+    // Update account balance/equity — also activate if first push
     if (account_info) {
       await supabase
         .from('mt4_accounts')
@@ -101,6 +100,11 @@ const receiveMT4Push = async (req, res) => {
           margin: account_info.margin,
           free_margin: account_info.freeMargin,
           profit: account_info.profit,
+          broker: account_info.broker || undefined,
+          account_name: account.is_connected ? undefined : (account_info.name || undefined),
+          currency: account_info.currency || undefined,
+          leverage: account_info.leverage || undefined,
+          is_connected: true,
           last_synced: now,
         })
         .eq('id', account.id);
