@@ -89,7 +89,38 @@ const connectAccount = async (req, res) => {
   }
 };
 
-// DELETE /api/accounts/:id
+// DELETE /api/accounts/:id  — permanently removes account and all related data
+const deleteAccount = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const { data: account, error: fetchError } = await supabase
+      .from('mt4_accounts')
+      .select('id')
+      .eq('id', id)
+      .eq('user_id', req.user.id)
+      .single();
+
+    if (fetchError || !account) {
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    const { error } = await supabase
+      .from('mt4_accounts')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    logger.info(`Account deleted: ${id} by user ${req.user.id}`);
+    return res.json({ message: 'Account deleted successfully' });
+  } catch (err) {
+    logger.error('DeleteAccount exception:', err);
+    return res.status(500).json({ error: 'Failed to delete account' });
+  }
+};
+
+// POST /api/accounts/:id/disconnect
 const disconnectAccount = async (req, res) => {
   const { id } = req.params;
 
@@ -154,4 +185,4 @@ const syncAccount = async (req, res) => {
   }
 };
 
-module.exports = { getAccounts, connectAccount, disconnectAccount, syncAccount };
+module.exports = { getAccounts, connectAccount, deleteAccount, disconnectAccount, syncAccount };

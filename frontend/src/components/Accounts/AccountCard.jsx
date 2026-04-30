@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { formatCurrency, formatDate } from '@/utils/format';
-import { ArrowPathIcon, XMarkIcon, ClipboardIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, XMarkIcon, ClipboardIcon, ClipboardDocumentCheckIcon, TrashIcon } from '@heroicons/react/24/outline';
 import api from '@/services/api';
 
-export default function AccountCard({ account, onSync, onDisconnect, isSyncing }) {
+export default function AccountCard({ account, onSync, onDisconnect, onDelete, isSyncing }) {
   const [bridgeToken, setBridgeToken] = useState(null);
   const [loadingToken, setLoadingToken] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -109,10 +109,17 @@ export default function AccountCard({ account, onSync, onDisconnect, isSyncing }
           </button>
           <button
             onClick={onDisconnect}
-            className="btn-danger px-2.5 py-1.5 text-xs"
+            className="btn-secondary px-2.5 py-1.5 text-xs"
             title="Disconnect"
           >
             <XMarkIcon className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={onDelete}
+            className="btn-danger px-2.5 py-1.5 text-xs"
+            title="Delete account"
+          >
+            <TrashIcon className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

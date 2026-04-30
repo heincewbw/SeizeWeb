@@ -45,7 +45,8 @@ export const authAPI = {
 export const accountsAPI = {
   getAll: () => api.get('/api/accounts'),
   connect: (data) => api.post('/api/accounts/connect', data),
-  disconnect: (id) => api.delete(`/api/accounts/${id}`),
+  disconnect: (id) => api.post(`/api/accounts/${id}/disconnect`),
+  delete: (id) => api.delete(`/api/accounts/${id}`),
   sync: (id) => api.post(`/api/accounts/${id}/sync`),
 };
 

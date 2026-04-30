@@ -61,6 +61,17 @@ export default function Accounts() {
     }
   };
 
+  const handleDelete = async (id) => {
+    if (!confirm('Delete this account permanently? This cannot be undone.')) return;
+    try {
+      await accountsAPI.delete(id);
+      setAccounts((prev) => prev.filter((a) => a.id !== id));
+      toast.success('Account deleted');
+    } catch {
+      toast.error('Failed to delete account');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -104,6 +115,7 @@ export default function Accounts() {
               account={account}
               onSync={() => handleSync(account.id)}
               onDisconnect={() => handleDisconnect(account.id)}
+              onDelete={() => handleDelete(account.id)}
               isSyncing={syncing === account.id}
             />
           ))}
