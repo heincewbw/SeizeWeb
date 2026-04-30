@@ -159,12 +159,12 @@ app.use((err, req, res, next) => {
     let detail = err.message;
     if (m) {
       const pos = parseInt(m[1]);
-      const start = Math.max(0, pos - 30);
+      const start = Math.max(0, pos - 200);
       const end = Math.min(req.rawBody.length, pos + 30);
       const snippet = req.rawBody.slice(start, end).toString('utf8').replace(/[\r\n]/g, '?');
       const hex = Array.from(req.rawBody.slice(Math.max(0, pos - 3), pos + 3))
         .map(b => b.toString(16).padStart(2, '0')).join(' ');
-      detail = `JSON err pos=${pos} hex=[${hex}] near=${snippet}`;
+      detail = `pos=${pos} hex=[${hex}] before=${snippet}`;
     }
     return res.status(400).json({ error: detail });
   }
