@@ -92,31 +92,35 @@ const receiveMT4Push = async (req, res) => {
 
     // Update account balance/equity — also activate if first push
     if (account_info) {
-      await supabase
-        .from('mt4_accounts')
-        .update({
-          balance: account_info.balance,
-          equity: account_info.equity,
-          margin: account_info.margin,
-          free_margin: account_info.freeMargin,
-          profit: account_info.profit,
-          broker: account_info.broker || undefined,
-          account_name: account.is_connected ? undefined : (account_info.name || undefined),
-          currency: account_info.currency || undefined,
-          leverage: account_info.leverage || undefined,
-          is_connected: true,
-          last_synced: now,
-        })
-        .eq('id', account.id);
+      const updatePayload = {
+        balance: account_info.balance,
+        equity: account_info.equity,
+        margin: account_info.margin,
+        free_margin: account_info.freeMargin,
+        profit: account_info.profit,
+        is_connected: true,
+        last_synced: now,
+      };
+      if (account_info.broker) updatePayload.broker = account_info.broker;
+      if (account_info.currency) updatePayload.currency = account_info.currency;
+      if (account_info.leverage) updatePayload.leverage = account_info.leverage;
+      if (!account.is_connected && account_info.name) updatePayload.account_name = account_info.name;
 
-      // Save equity snapshot (roughly once per push)
-      await supabase.from('equity_snapshots').insert({
+      const { error: updateErr } = await supabase
+        .from('mt4_accounts')
+        .update(updatePayload)
+        .eq('id', account.id);
+      if (updateErr) logger.error('mt4Push updateAccount error:', updateErr);
+
+      // Save equity snapshot
+      const { error: snapErr } = await supabase.from('equity_snapshots').insert({
         mt4_account_id: account.id,
         user_id: account.user_id,
         balance: account_info.balance,
         equity: account_info.equity,
         profit: account_info.profit,
       });
+      if (snapErr) logger.error('mt4Push insertSnapshot error:', snapErr);
     }
 
     // Cache open positions in memory
@@ -133,32 +137,38 @@ const receiveMT4Push = async (req, res) => {
 
     // Save trade history (upsert)
     if (history && Array.isArray(history) && history.length > 0) {
-      const rows = history.map((h) => ({
-        mt4_account_id: account.id,
-        user_id: account.user_id,
-        ticket: h.ticket,
-        symbol: h.symbol,
-        type: h.type,
-        lots: h.lots,
-        open_price: h.openPrice,
-        close_price: h.closePrice,
-        stop_loss: h.stopLoss || 0,
-        take_profit: h.takeProfit || 0,
-        profit: h.profit,
-        commission: h.commission || 0,
-        swap: h.swap || 0,
-        open_time: h.openTime
-          ? new Date(typeof h.openTime === 'number' ? h.openTime * 1000 : h.openTime).toISOString()
-          : null,
-        close_time: h.closeTime
-          ? new Date(typeof h.closeTime === 'number' ? h.closeTime * 1000 : h.closeTime).toISOString()
-          : null,
-        comment: h.comment || '',
-      }));
+      const ALLOWED_TYPES = ['BUY', 'SELL', 'BUY_LIMIT', 'SELL_LIMIT', 'BUY_STOP', 'SELL_STOP', 'BALANCE', 'CREDIT'];
+      const rows = history
+        .filter((h) => ALLOWED_TYPES.includes(h.type)) // skip UNKNOWN etc
+        .map((h) => ({
+          mt4_account_id: account.id,
+          user_id: account.user_id,
+          ticket: h.ticket,
+          symbol: h.symbol,
+          type: h.type,
+          lots: h.lots,
+          open_price: h.openPrice,
+          close_price: h.closePrice,
+          stop_loss: h.stopLoss || 0,
+          take_profit: h.takeProfit || 0,
+          profit: h.profit,
+          commission: h.commission || 0,
+          swap: h.swap || 0,
+          open_time: h.openTime
+            ? new Date(Number(h.openTime) * 1000).toISOString()
+            : null,
+          close_time: h.closeTime
+            ? new Date(Number(h.closeTime) * 1000).toISOString()
+            : null,
+          comment: h.comment || '',
+        }));
 
-      await supabase
-        .from('trade_history')
-        .upsert(rows, { onConflict: 'mt4_account_id,ticket' });
+      if (rows.length > 0) {
+        const { error: histErr } = await supabase
+          .from('trade_history')
+          .upsert(rows, { onConflict: 'mt4_account_id,ticket', ignoreDuplicates: true });
+        if (histErr) logger.error('mt4Push upsertHistory error:', histErr);
+      }
     }
 
     logger.info(
@@ -169,7 +179,7 @@ const receiveMT4Push = async (req, res) => {
     return res.json({ success: true, message: 'Data received' });
   } catch (err) {
     logger.error('MT4 push error:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: err.message || 'Internal server error' });
   }
 };
 
