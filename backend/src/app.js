@@ -15,7 +15,6 @@ const accountRoutes = require('./routes/accounts');
 const positionRoutes = require('./routes/positions');
 const statsRoutes = require('./routes/stats');
 const mt4PushRoutes = require('./routes/mt4Push');
-const mt4Bridge = require('./services/mt4Bridge');
 const supabase = require('./config/supabase');
 
 const app = express();
