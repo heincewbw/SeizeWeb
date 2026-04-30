@@ -74,11 +74,11 @@ void OnTimer()
    payload += ",\"login\":\""      + login + "\"";
    payload += ",\"server\":\""     + EscapeJson(server) + "\"";
    payload += ",\"account_info\":{";
-   payload += "\"balance\":"       + DoubleToString(AccountBalance(),   2);
-   payload += ",\"equity\":"       + DoubleToString(AccountEquity(),    2);
-   payload += ",\"margin\":"       + DoubleToString(AccountMargin(),    2);
-   payload += ",\"freeMargin\":"   + DoubleToString(AccountFreeMargin(),2);
-   payload += ",\"profit\":"       + DoubleToString(AccountProfit(),    2);
+   payload += "\"balance\":"       + SafeNum(AccountBalance(),   2);
+   payload += ",\"equity\":"       + SafeNum(AccountEquity(),    2);
+   payload += ",\"margin\":"       + SafeNum(AccountMargin(),    2);
+   payload += ",\"freeMargin\":"   + SafeNum(AccountFreeMargin(),2);
+   payload += ",\"profit\":"       + SafeNum(AccountProfit(),    2);
    payload += ",\"name\":\""       + EscapeJson(AccountName())    + "\"";
    payload += ",\"broker\":\""     + EscapeJson(AccountCompany()) + "\"";
    payload += ",\"currency\":\""   + AccountCurrency()            + "\"";
@@ -146,15 +146,15 @@ string BuildPositionsJson()
 
       arr += "{";
       arr += "\"ticket\":"        + IntegerToString(OrderTicket());
-      arr += ",\"symbol\":\""     + OrderSymbol() + "\"";
+      arr += ",\"symbol\":\""     + EscapeJson(OrderSymbol()) + "\"";
       arr += ",\"type\":\""       + TypeToStr(OrderType()) + "\"";
-      arr += ",\"lots\":"         + DoubleToString(OrderLots(),        2);
-      arr += ",\"openPrice\":"    + DoubleToString(OrderOpenPrice(),   5);
-      arr += ",\"currentPrice\":" + DoubleToString(curPrice,           5);
-      arr += ",\"stopLoss\":"     + DoubleToString(OrderStopLoss(),    5);
-      arr += ",\"takeProfit\":"   + DoubleToString(OrderTakeProfit(),  5);
-      arr += ",\"profit\":"       + DoubleToString(OrderProfit(),      2);
-      arr += ",\"swap\":"         + DoubleToString(OrderSwap(),        2);
+      arr += ",\"lots\":"         + SafeNum(OrderLots(),        2);
+      arr += ",\"openPrice\":"    + SafeNum(OrderOpenPrice(),   5);
+      arr += ",\"currentPrice\":" + SafeNum(curPrice,           5);
+      arr += ",\"stopLoss\":"     + SafeNum(OrderStopLoss(),    5);
+      arr += ",\"takeProfit\":"   + SafeNum(OrderTakeProfit(),  5);
+      arr += ",\"profit\":"       + SafeNum(OrderProfit(),      2);
+      arr += ",\"swap\":"         + SafeNum(OrderSwap(),        2);
       arr += ",\"openTime\":"     + IntegerToString(OrderOpenTime());
       arr += ",\"comment\":\""    + EscapeJson(OrderComment()) + "\"";
       arr += "}";
@@ -183,16 +183,16 @@ string BuildHistoryJson(datetime fromTime)
 
       arr += "{";
       arr += "\"ticket\":"      + IntegerToString(OrderTicket());
-      arr += ",\"symbol\":\""   + OrderSymbol() + "\"";
+      arr += ",\"symbol\":\""   + EscapeJson(OrderSymbol()) + "\"";
       arr += ",\"type\":\""     + TypeToStr(OrderType()) + "\"";
-      arr += ",\"lots\":"       + DoubleToString(OrderLots(),       2);
-      arr += ",\"openPrice\":"  + DoubleToString(OrderOpenPrice(),  5);
-      arr += ",\"closePrice\":" + DoubleToString(OrderClosePrice(), 5);
-      arr += ",\"stopLoss\":"   + DoubleToString(OrderStopLoss(),   5);
-      arr += ",\"takeProfit\":" + DoubleToString(OrderTakeProfit(), 5);
-      arr += ",\"profit\":"     + DoubleToString(OrderProfit(),     2);
-      arr += ",\"commission\":" + DoubleToString(OrderCommission(), 2);
-      arr += ",\"swap\":"       + DoubleToString(OrderSwap(),       2);
+      arr += ",\"lots\":"       + SafeNum(OrderLots(),       2);
+      arr += ",\"openPrice\":"  + SafeNum(OrderOpenPrice(),  5);
+      arr += ",\"closePrice\":" + SafeNum(OrderClosePrice(), 5);
+      arr += ",\"stopLoss\":"   + SafeNum(OrderStopLoss(),   5);
+      arr += ",\"takeProfit\":" + SafeNum(OrderTakeProfit(), 5);
+      arr += ",\"profit\":"     + SafeNum(OrderProfit(),     2);
+      arr += ",\"commission\":" + SafeNum(OrderCommission(), 2);
+      arr += ",\"swap\":"       + SafeNum(OrderSwap(),       2);
       arr += ",\"openTime\":"   + IntegerToString(OrderOpenTime());
       arr += ",\"closeTime\":"  + IntegerToString(OrderCloseTime());
       arr += ",\"comment\":\"\"";
@@ -231,4 +231,11 @@ string EscapeJson(string s)
       // strip everything else: control chars, non-ASCII, etc.
    }
    return result;
+}
+
+//--- Helper: safe number to string - replaces nan/inf with 0
+string SafeNum(double v, int digits)
+{
+   if(!MathIsValidNumber(v)) return "0";
+   return DoubleToString(v, digits);
 }
