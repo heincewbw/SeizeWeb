@@ -208,7 +208,7 @@ const receiveMT4Push = async (req, res) => {
       if (rows.length > 0) {
         const { error: histErr } = await supabase
           .from('trade_history')
-          .upsert(rows, { onConflict: 'mt4_account_id,ticket', ignoreDuplicates: true });
+          .upsert(rows, { onConflict: 'mt4_account_id,ticket', ignoreDuplicates: false });
         if (histErr) logger.error('mt4Push upsertHistory error:', histErr);
       }
     }
