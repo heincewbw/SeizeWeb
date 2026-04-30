@@ -104,7 +104,7 @@ const receiveMT4Push = async (req, res) => {
       if (account_info.broker) updatePayload.broker = account_info.broker;
       if (account_info.currency) updatePayload.currency = account_info.currency;
       if (account_info.leverage) updatePayload.leverage = account_info.leverage;
-      if (!account.is_connected && account_info.name) updatePayload.account_name = account_info.name;
+      if (account_info.name) updatePayload.account_name = account_info.name;
 
       const { error: updateErr } = await supabase
         .from('mt4_accounts')
