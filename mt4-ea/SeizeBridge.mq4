@@ -38,19 +38,17 @@ int OnInit()
       return(INIT_FAILED);
    }
    Print("[SeizeBridge] Mulai. Server=", ServerUrl, " Login=", AccountNumber());
-   EventSetTimer(1);
    return(INIT_SUCCEEDED);
 }
 
 //--- Deinit
 void OnDeinit(const int reason)
 {
-   EventKillTimer();
    Print("[SeizeBridge] Berhenti. Reason=", reason);
 }
 
-//--- Timer: push data setiap PushInterval detik
-void OnTimer()
+//--- Tick: push data setiap PushInterval detik
+void OnTick()
 {
    if(TimeCurrent() - gLastPush < PushInterval) return;
    gLastPush = TimeCurrent();
