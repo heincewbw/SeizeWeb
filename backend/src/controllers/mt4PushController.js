@@ -112,7 +112,7 @@ const receiveMT4Push = async (req, res) => {
         .eq('id', account.id);
       if (updateErr) logger.error('mt4Push updateAccount error:', updateErr);
 
-      // Save equity snapshot max 2x per day (every 12 hours)
+      // Save equity snapshot max 1x per hour
       const { data: lastSnap } = await supabase
         .from('equity_snapshots')
         .select('created_at')
@@ -121,9 +121,9 @@ const receiveMT4Push = async (req, res) => {
         .limit(1)
         .single();
 
-      const twelveHours = 12 * 60 * 60 * 1000;
+      const oneHour = 60 * 60 * 1000;
       const lastSnapTime = lastSnap ? new Date(lastSnap.created_at).getTime() : 0;
-      if (Date.now() - lastSnapTime >= twelveHours) {
+      if (Date.now() - lastSnapTime >= oneHour) {
         const { error: snapErr } = await supabase.from('equity_snapshots').insert({
           mt4_account_id: account.id,
           user_id: account.user_id,
