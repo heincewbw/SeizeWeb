@@ -59,7 +59,9 @@ void OnTimer()
 
    if(PushHistory && !gHistorySent)
    {
-      histJson     = BuildHistoryJson(0);
+      // Kirim history 90 hari terakhir saja (bukan semua history)
+      datetime fromTime = TimeCurrent() - 90 * 86400;
+      histJson     = BuildHistoryJson(fromTime);
       gHistorySent = true;
    }
 
