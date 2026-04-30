@@ -79,9 +79,26 @@ app.use(cors({
   origin: getAllowedOrigin(),
   credentials: true,
 }));
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '5mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ extended: false }));
 app.use(morgan('dev'));
+
+// JSON parse error handler - log snippet around error position
+app.use((err, req, res, next) => {
+  if (err && err.type === 'entity.parse.failed') {
+    const m = err.message.match(/position (\d+)/);
+    if (m && req.rawBody) {
+      const pos = parseInt(m[1]);
+      const start = Math.max(0, pos - 80);
+      const end = Math.min(req.rawBody.length, pos + 80);
+      const snippet = req.rawBody.slice(start, end).toString('utf8');
+      const bytes = Array.from(req.rawBody.slice(Math.max(0, pos - 5), pos + 5))
+        .map(b => b.toString(16).padStart(2, '0')).join(' ');
+      logger.error(`JSON parse error at pos ${pos}. Snippet: ${JSON.stringify(snippet)} | Bytes near: ${bytes}`);
+    }
+  }
+  next(err);
+});
 
 // Rate limiting
 const limiter = rateLimit({
@@ -135,6 +152,23 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
   const status = err.status || err.statusCode || 500;
   logger.error(`Unhandled error [${status}]:`, err.message || err);
+
+  // For JSON parse errors on /api/mt4/push, include snippet in response so EA can log it
+  if (err.type === 'entity.parse.failed' && req.rawBody && req.path === '/api/mt4/push') {
+    const m = err.message.match(/position (\d+)/);
+    let detail = err.message;
+    if (m) {
+      const pos = parseInt(m[1]);
+      const start = Math.max(0, pos - 30);
+      const end = Math.min(req.rawBody.length, pos + 30);
+      const snippet = req.rawBody.slice(start, end).toString('utf8').replace(/[\r\n]/g, '?');
+      const hex = Array.from(req.rawBody.slice(Math.max(0, pos - 3), pos + 3))
+        .map(b => b.toString(16).padStart(2, '0')).join(' ');
+      detail = `JSON err pos=${pos} hex=[${hex}] near=${snippet}`;
+    }
+    return res.status(400).json({ error: detail });
+  }
+
   res.status(status).json({
     error: status === 500 && process.env.NODE_ENV === 'production'
       ? 'Internal server error'
