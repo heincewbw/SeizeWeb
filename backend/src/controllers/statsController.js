@@ -90,7 +90,7 @@ const getEquityChart = async (req, res) => {
   try {
     let query = supabase
       .from('equity_snapshots')
-      .select('equity, balance, profit, created_at')
+      .select('equity, balance, profit, created_at, mt4_account_id')
       .eq('user_id', req.user.id)
       .gte('created_at', fromDate.toISOString())
       .order('created_at', { ascending: true });
@@ -100,7 +100,41 @@ const getEquityChart = async (req, res) => {
     const { data: snapshots, error } = await query;
     if (error) throw error;
 
-    return res.json({ chart: snapshots || [] });
+    if (!snapshots || snapshots.length === 0) {
+      return res.json({ chart: [] });
+    }
+
+    // If single account selected, return raw snapshots
+    if (account_id) {
+      return res.json({ chart: snapshots });
+    }
+
+    // Multi-account: aggregate by hour bucket, sum equity+balance across accounts
+    // Use the latest snapshot per account per bucket
+    const buckets = {}; // key: "YYYY-MM-DDTHH" → { [account_id]: { equity, balance, profit, created_at } }
+    for (const snap of snapshots) {
+      const dt = new Date(snap.created_at);
+      // Truncate to hour
+      const bucketKey = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}T${String(dt.getHours()).padStart(2,'0')}`;
+      if (!buckets[bucketKey]) buckets[bucketKey] = {};
+      // Keep latest per account within the bucket
+      buckets[bucketKey][snap.mt4_account_id] = snap;
+    }
+
+    // Build aggregated chart: sum all accounts in each bucket
+    const chart = Object.entries(buckets)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([bucketKey, accountSnaps]) => {
+        const values = Object.values(accountSnaps);
+        return {
+          created_at: values[0].created_at,
+          equity:  values.reduce((s, v) => s + (v.equity  || 0), 0),
+          balance: values.reduce((s, v) => s + (v.balance || 0), 0),
+          profit:  values.reduce((s, v) => s + (v.profit  || 0), 0),
+        };
+      });
+
+    return res.json({ chart });
   } catch (err) {
     logger.error('GetEquityChart exception:', err);
     return res.status(500).json({ error: 'Failed to fetch equity chart' });
