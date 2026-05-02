@@ -8,8 +8,9 @@ export default function AccountCard({ account, isAdmin, onSync, onDisconnect, on
   const [loadingToken, setLoadingToken] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const equity = account.equity || 0;
-  const balance = account.balance || 0;
+  const divisor = account.currency === 'USC' ? 100 : 1;
+  const equity = (account.equity || 0) / divisor;
+  const balance = (account.balance || 0) / divisor;
   const profitPct = balance > 0 ? (((equity - balance) / balance) * 100).toFixed(2) : 0;
   const isProfit = equity >= balance;
 
@@ -71,20 +72,20 @@ export default function AccountCard({ account, isAdmin, onSync, onDisconnect, on
         <div className="bg-dark-900 rounded-lg p-3">
           <p className="text-xs text-slate-500 mb-0.5">Floating P/L</p>
           <p className={`font-mono font-semibold text-sm ${account.profit >= 0 ? 'text-brand-400' : 'text-danger-400'}`}>
-            {formatCurrency(account.profit || 0)}{' '}
+            {formatCurrency((account.profit || 0) / divisor)}{' '}
             <span className="text-xs opacity-70">({profitPct}%)</span>
           </p>
         </div>
         <div className="bg-dark-900 rounded-lg p-3">
           <p className="text-xs text-slate-500 mb-0.5">Free Margin</p>
-          <p className="font-mono font-semibold text-slate-300 text-sm">{formatCurrency(account.free_margin || 0)}</p>
+          <p className="font-mono font-semibold text-slate-300 text-sm">{formatCurrency((account.free_margin || 0) / divisor)}</p>
         </div>
       </div>
 
       {/* Footer */}
       <div className="flex items-center justify-between pt-3 border-t border-slate-700/50">
         <div className="text-xs text-slate-600">
-          {account.currency} · 1:{account.leverage} · {account.broker}
+          {account.currency === 'USC' ? 'USD (USC÷100)' : account.currency} · 1:{account.leverage} · {account.broker}
         </div>
         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           {isAdmin && (

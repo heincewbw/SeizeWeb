@@ -24,7 +24,7 @@ const getAccounts = async (req, res) => {
 
 // POST /api/accounts/connect
 const connectAccount = async (req, res) => {
-  const { login, server, account_name } = req.body;
+  const { login, server, account_name, currency } = req.body;
 
   if (!login || !server) {
     return res.status(400).json({ error: 'login and server are required' });
@@ -46,6 +46,7 @@ const connectAccount = async (req, res) => {
         .from('mt4_accounts')
         .update({
           account_name: account_name || `Account ${login}`,
+          ...(currency ? { currency } : {}),
           is_connected: false,
         })
         .eq('id', existing.id)
@@ -62,7 +63,7 @@ const connectAccount = async (req, res) => {
           login: String(login),
           server,
           account_name: account_name || `Account ${login}`,
-          currency: 'USD',
+          currency: currency || 'USD',
           leverage: 100,
           balance: 0,
           equity: 0,

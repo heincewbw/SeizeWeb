@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { XMarkIcon, ClipboardIcon, ClipboardDocumentCheckIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 
 export default function ConnectMT4Modal({ onClose, onSuccess }) {
-  const [form, setForm] = useState({ login: '', server: '', account_name: '' });
+  const [form, setForm] = useState({ login: '', server: '', account_name: '', is_usc: false });
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -14,7 +14,7 @@ export default function ConnectMT4Modal({ onClose, onSuccess }) {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data } = await accountsAPI.connect(form);
+      const { data } = await accountsAPI.connect({ ...form, currency: form.is_usc ? 'USC' : 'USD' });
       const tokenRes = await api.get(
         `/api/mt4/token?login=${form.login}&server=${encodeURIComponent(form.server)}`
       );
@@ -106,6 +106,24 @@ export default function ConnectMT4Modal({ onClose, onSuccess }) {
               Label Akun <span className="text-slate-500 text-xs">(opsional)</span>
             </label>
             <input type="text" className="input-field" placeholder="e.g. Main Account, Prop Firm" value={form.account_name} onChange={(e) => setForm({ ...form, account_name: e.target.value })} />
+          </div>
+          <div>
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                className="w-4 h-4 rounded border-slate-600 bg-dark-900 text-brand-500 focus:ring-brand-500 focus:ring-offset-0"
+                checked={form.is_usc}
+                onChange={(e) => setForm({ ...form, is_usc: e.target.checked })}
+              />
+              <span className="text-sm text-slate-300">
+                Akun USC (cents) — nilai akan dibagi 100
+              </span>
+            </label>
+            {form.is_usc && (
+              <p className="mt-1.5 text-xs text-amber-400/80 ml-6.5">
+                Currency USC: balance/equity dari MT4 akan otomatis dibagi 100 saat ditampilkan.
+              </p>
+            )}
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Cancel</button>

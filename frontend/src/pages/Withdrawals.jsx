@@ -157,20 +157,20 @@ export default function Withdrawals() {
                       <p className="font-medium">{w.mt4_accounts?.account_name || 'â€”'}</p>
                       <p className="text-xs text-slate-500">{w.mt4_accounts?.login} · {w.mt4_accounts?.server}</p>
                     </td>
-                    <td className="px-4 py-3 font-mono text-slate-400 text-xs">{w.ticket}</td>
+                    <td className="px-4 py-3 font-mono text-slate-400 text-xs">{w.ticket ?? '—'}</td>
                     <td className="px-4 py-3">
-                      <span className={clsx('px-2.5 py-0.5 rounded-full text-xs font-medium', TYPE_BADGE[w.type] || '')}>
+                      <span className={clsx('px-2.5 py-0.5 rounded-full text-xs font-medium', TYPE_BADGE[w.type] || TYPE_BADGE.withdrawal)}>
                         {w.type === 'transfer' ? 'Transfer' : 'Withdrawal'}
                       </span>
                     </td>
                     <td className="px-4 py-3 font-mono font-semibold text-danger-400">
                       -{formatCurrency(w.amount, w.mt4_accounts?.currency || w.currency)}
                     </td>
-                    <td className="px-4 py-3 text-slate-400 text-xs max-w-[180px] truncate" title={w.comment}>
-                      {w.comment || 'â€”'}
+                    <td className="px-4 py-3 text-slate-400 text-xs max-w-[180px] truncate" title={w.comment || w.notes || w.bank_name}>
+                      {w.comment || w.notes || w.bank_name || '—'}
                     </td>
                     <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">
-                      {w.close_time ? formatDate(w.close_time) : formatDate(w.created_at)}
+                      {formatDate(w.close_time || w.created_at)}
                     </td>
                     <td className="px-4 py-3">
                       <span className={clsx('px-2.5 py-0.5 rounded-full text-xs font-medium', STATUS_BADGE[w.status] || '')}>
