@@ -20,7 +20,7 @@
 #property strict
 
 // Input parameters
-input string  ServerUrl    = "http://127.0.0.1:5000"; // Backend server URL
+input string  ServerUrl    = "https://seizeweb-production.up.railway.app"; // Backend server URL
 input string  EaSecret     = "";                       // EA_SECRET dari Railway env (untuk auto-register)
 input string  BridgeToken  = "";                       // Bridge token manual (kosongkan jika pakai EaSecret)
 input int     PushInterval = 300;                      // Push interval in seconds
