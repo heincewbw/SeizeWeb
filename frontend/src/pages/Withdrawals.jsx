@@ -25,6 +25,7 @@ export default function Withdrawals() {
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterType, setFilterType] = useState('');
 
   // Admin status update modal
   const [statusModal, setStatusModal] = useState(null);
@@ -154,7 +155,7 @@ export default function Withdrawals() {
                     )}
                     <td className="px-4 py-3 text-slate-300">
                       <p className="font-medium">{w.mt4_accounts?.account_name || 'â€”'}</p>
-                      <p className="text-xs text-slate-500">{w.mt4_accounts?.login} Â· {w.mt4_accounts?.server}</p>
+                      <p className="text-xs text-slate-500">{w.mt4_accounts?.login} · {w.mt4_accounts?.server}</p>
                     </td>
                     <td className="px-4 py-3 font-mono text-slate-400 text-xs">{w.ticket}</td>
                     <td className="px-4 py-3">
