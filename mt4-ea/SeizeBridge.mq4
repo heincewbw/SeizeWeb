@@ -2,25 +2,27 @@
 //|  SeizeBridge.mq4                                                  |
 //|  MT4 Bridge Expert Advisor for SeizeWeb Platform                  |
 //|                                                                   |
-//|  SETUP:                                                           |
-//|  1. Copy to: MetaTrader4/MQL4/Experts/SeizeBridge.mq4            |
-//|  2. Compile in MetaEditor (F7)                                    |
-//|  3. Drag onto any chart (e.g. EURUSD, M1)                        |
-//|  4. Enable "Allow live trading"                                   |
-//|  5. Tools > Options > Expert Advisors                             |
-//|     > "Allow WebRequest for listed URL"                           |
-//|     > Add: http://127.0.0.1:5000 (or your server URL)            |
-//|  6. Set ServerUrl to your backend address                         |
-//|  7. Get BridgeToken: SeizeWeb UI > MT4 Accounts > hover > EA btn |
-//|  8. Paste the token into BridgeToken input parameter              |
+//|  SETUP (Mode Auto — direkomendasikan untuk ratusan akun):         |
+//|  1. Copy ke: MetaTrader4/MQL4/Experts/SeizeBridge.mq4            |
+//|  2. Compile di MetaEditor (F7)                                    |
+//|  3. Set ServerUrl = URL Railway kamu                              |
+//|  4. Set EaSecret  = nilai EA_SECRET dari Railway environment      |
+//|  5. Kosongkan BridgeToken (biarkan "" — akan di-fetch otomatis)   |
+//|  6. Drag ke chart mana saja di tiap MT4 terminal                  |
+//|  7. Enable "Allow live trading" & tambahkan ServerUrl ke          |
+//|     Tools > Options > Expert Advisors > Allow WebRequest          |
+//|                                                                   |
+//|  SETUP (Mode Manual — jika tidak pakai EaSecret):                 |
+//|  Isi BridgeToken dari SeizeWeb UI > MT4 Accounts > hover > EA btn |
 //+------------------------------------------------------------------+
 #property copyright "SeizeWeb"
-#property version   "2.0"
+#property version   "2.1"
 #property strict
 
 // Input parameters
 input string  ServerUrl    = "http://127.0.0.1:5000"; // Backend server URL
-input string  BridgeToken  = "";                       // Bridge token from SeizeWeb UI
+input string  EaSecret     = "";                       // EA_SECRET dari Railway env (untuk auto-register)
+input string  BridgeToken  = "";                       // Bridge token manual (kosongkan jika pakai EaSecret)
 input int     PushInterval = 300;                      // Push interval in seconds
 input bool    PushHistory  = true;                     // Send trade history
 input int     MaxHistory   = 500;                      // Max history trades to send (0 = unlimited)
@@ -29,19 +31,117 @@ input bool    CentsAccount = true;                     // Divide all monetary va
 
 // Global state
 datetime gLastPush        = 0;
-datetime gLastHistorySent = 0;   // tracks last closed-trade timestamp sent
+datetime gLastHistorySent = 0;
 double   gDivisor         = 1.0;
+string   gActiveToken     = "";   // token yang dipakai (manual atau auto-fetched)
+
+// Global Variable key untuk cache token di MT4
+string GV_TOKEN_KEY = "";
 
 //--- Init
 int OnInit()
 {
-   if(StringLen(BridgeToken) == 0)
+   GV_TOKEN_KEY = "SeizeBridgeToken_" + IntegerToString(AccountNumber()) + "_" + AccountServer();
+
+   // Prioritas: BridgeToken manual > cached GV > auto-register via EaSecret
+   if(StringLen(BridgeToken) > 0)
    {
-      Alert("[SeizeBridge] BridgeToken kosong! Ambil dari SeizeWeb UI > MT4 Accounts > hover > tombol EA.");
-      return(INIT_FAILED);
+      gActiveToken = BridgeToken;
+      Print("[SeizeBridge] Mode manual. Token dari input parameter.");
    }
+   else if(GlobalVariableCheck(GV_TOKEN_KEY))
+   {
+      // Token sudah di-cache dari sesi sebelumnya — decode dari GV (simpan sebagai checksum index)
+      // GV hanya bisa simpan double, jadi kita simpan flag dan ambil dari file
+      string cached = ReadTokenFile();
+      if(StringLen(cached) == 64)  // SHA256 hex = 64 chars
+      {
+         gActiveToken = cached;
+         Print("[SeizeBridge] Token di-load dari cache. Login=", AccountNumber());
+      }
+   }
+
+   if(StringLen(gActiveToken) == 0)
+   {
+      if(StringLen(EaSecret) == 0)
+      {
+         Alert("[SeizeBridge] Isi BridgeToken ATAU EaSecret! Ambil EaSecret dari Railway environment variables.");
+         return(INIT_FAILED);
+      }
+      // Auto-fetch token dari server
+      Print("[SeizeBridge] Mengambil token otomatis dari server...");
+      gActiveToken = FetchToken();
+      if(StringLen(gActiveToken) == 0)
+      {
+         Alert("[SeizeBridge] Gagal mengambil token otomatis! Cek ServerUrl dan EaSecret.");
+         return(INIT_FAILED);
+      }
+      // Cache ke file agar tidak perlu fetch ulang setiap restart
+      WriteTokenFile(gActiveToken);
+      GlobalVariableSet(GV_TOKEN_KEY, 1.0);
+      Print("[SeizeBridge] Token berhasil di-fetch dan di-cache. Login=", AccountNumber());
+   }
+
    Print("[SeizeBridge] Mulai. Server=", ServerUrl, " Login=", AccountNumber());
    return(INIT_SUCCEEDED);
+}
+
+//--- Deinit
+void OnDeinit(const int reason)
+{
+   Print("[SeizeBridge] Berhenti. Reason=", reason);
+}
+
+//--- Auto-fetch token dari endpoint ea-autoregister
+string FetchToken()
+{
+   string url     = ServerUrl + "/api/mt4/ea-autoregister";
+   string headers = "Content-Type: application/json\r\n";
+   char   postData[];
+   char   resultData[];
+   string resultHeaders;
+
+   string login  = IntegerToString(AccountNumber());
+   string server = AccountServer();
+   string payload = "{\"ea_secret\":\"" + EaSecret + "\",\"login\":\"" + login + "\",\"server\":\"" + EscapeJson(server) + "\"}";
+
+   StringToCharArray(payload, postData, 0, StringLen(payload));
+
+   int res = WebRequest("POST", url, headers, 10000, postData, resultData, resultHeaders);
+   if(res != 200)
+   {
+      string body = CharArrayToString(resultData);
+      Print("[SeizeBridge] FetchToken gagal. HTTP=", res, " Body=", body);
+      return("");
+   }
+
+   string body = CharArrayToString(resultData);
+   // Parse "bridge_token" dari JSON response sederhana
+   int idx = StringFind(body, "\"bridge_token\":\"");
+   if(idx < 0) { Print("[SeizeBridge] FetchToken: bridge_token tidak ditemukan dalam response"); return(""); }
+   idx += 16;  // skip past "bridge_token":"
+   int end = StringFind(body, "\"", idx);
+   if(end < 0) return("");
+   return StringSubstr(body, idx, end - idx);
+}
+
+//--- Simpan token ke file lokal MT4 (MQL4/Files/)
+void WriteTokenFile(string token)
+{
+   string fname = "SeizeBridge_" + IntegerToString(AccountNumber()) + "_" + AccountServer() + ".tkn";
+   int h = FileOpen(fname, FILE_WRITE | FILE_TXT | FILE_ANSI);
+   if(h != INVALID_HANDLE) { FileWriteString(h, token); FileClose(h); }
+}
+
+string ReadTokenFile()
+{
+   string fname = "SeizeBridge_" + IntegerToString(AccountNumber()) + "_" + AccountServer() + ".tkn";
+   if(!FileIsExist(fname)) return("");
+   int h = FileOpen(fname, FILE_READ | FILE_TXT | FILE_ANSI);
+   if(h == INVALID_HANDLE) return("");
+   string token = FileReadString(h);
+   FileClose(h);
+   return token;
 }
 
 //--- Deinit
@@ -62,8 +162,6 @@ void OnTick()
 
    if(PushHistory)
    {
-      // Pertama kali: ambil HistoryDays hari ke belakang
-      // Selanjutnya: hanya kirim trade yang ditutup sejak push terakhir
       datetime fromTime = (gLastHistorySent == 0)
                           ? TimeCurrent() - HistoryDays * 86400
                           : gLastHistorySent;
@@ -75,7 +173,7 @@ void OnTick()
    string server = AccountServer();
 
    string payload = "{";
-   payload += "\"token\":\""       + BridgeToken + "\"";
+   payload += "\"token\":\""       + gActiveToken + "\"";
    payload += ",\"login\":\""      + login + "\"";
    payload += ",\"server\":\""     + EscapeJson(server) + "\"";
    payload += ",\"account_info\":{";

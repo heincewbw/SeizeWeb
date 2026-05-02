@@ -273,4 +273,64 @@ const receiveMT4Push = async (req, res) => {
   }
 };
 
-module.exports = { getBridgeToken, receiveMT4Push, positionCache, generateBridgeToken };
+/**
+ * POST /api/mt4/ea-autoregister  (no user JWT — uses EA_SECRET shared key)
+ * Called by the EA on first init to auto-fetch its bridge token.
+ * Body: { ea_secret, login, server, account_name (optional) }
+ * Returns: { bridge_token }
+ *
+ * EA_SECRET must be set as an environment variable on the server.
+ * All EA instances share this one secret — no per-account config needed.
+ */
+const eaAutoRegister = async (req, res) => {
+  const { ea_secret, login, server, account_name } = req.body;
+
+  if (!ea_secret || !login || !server) {
+    return res.status(400).json({ error: 'ea_secret, login and server are required' });
+  }
+
+  const expectedSecret = process.env.EA_SECRET;
+  if (!expectedSecret) {
+    return res.status(500).json({ error: 'EA_SECRET not configured on server' });
+  }
+
+  // Constant-time compare to prevent timing attacks
+  let valid = false;
+  try {
+    const a = Buffer.from(ea_secret);
+    const b = Buffer.from(expectedSecret);
+    valid = a.length === b.length && crypto.timingSafeEqual(a, b);
+  } catch {
+    valid = false;
+  }
+
+  if (!valid) {
+    return res.status(401).json({ error: 'Invalid EA secret' });
+  }
+
+  try {
+    // Find an mt4_accounts row for this login+server (any user)
+    const { data: account } = await supabase
+      .from('mt4_accounts')
+      .select('id, user_id')
+      .eq('login', String(login))
+      .eq('server', server)
+      .limit(1)
+      .single();
+
+    if (!account) {
+      return res.status(404).json({
+        error: 'Account not registered in SeizeWeb. Ask the investor to register the account first.',
+      });
+    }
+
+    const token = generateBridgeToken(login, server);
+    logger.info(`EA auto-register: login=${login} server=${server}`);
+    return res.json({ bridge_token: token });
+  } catch (err) {
+    logger.error('eaAutoRegister error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+module.exports = { getBridgeToken, receiveMT4Push, eaAutoRegister, positionCache, generateBridgeToken };
