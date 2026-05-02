@@ -1,7 +1,4 @@
 require('dotenv').config();
-// Debug: confirm env vars are loaded (remove after verifying)
-console.log('[ENV CHECK] EA_SECRET:', process.env.EA_SECRET ? `SET (${process.env.EA_SECRET.length} chars)` : 'NOT SET');
-console.log('[ENV CHECK] JWT_SECRET:', process.env.JWT_SECRET ? 'SET' : 'NOT SET');
 const express = require('express');
 const http = require('http');
 const path = require('path');
