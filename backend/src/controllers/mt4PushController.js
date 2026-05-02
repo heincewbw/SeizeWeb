@@ -186,7 +186,7 @@ const receiveMT4Push = async (req, res) => {
           mt4_account_id: account.id,
           user_id: account.user_id,
           ticket: h.ticket,
-          symbol: h.symbol,
+          symbol: h.symbol || 'BALANCE',  // BALANCE entries have empty symbol in MT4
           type: h.type,
           lots: h.lots,
           open_price: h.openPrice,
@@ -210,6 +210,41 @@ const receiveMT4Push = async (req, res) => {
           .from('trade_history')
           .upsert(rows, { onConflict: 'mt4_account_id,ticket', ignoreDuplicates: false });
         if (histErr) logger.error('mt4Push upsertHistory error:', histErr);
+      }
+
+      // Auto-detect withdrawals: BALANCE entries with negative profit
+      // Use account currency from account_info if available
+      const accountCurrency = account_info?.currency || 'USD';
+
+      // Detect type from comment:
+      // Internal transfer comments contain "-INT-" (e.g. W-ALLINT-USC-INT-...)
+      // Withdrawal comments contain "-USC-" but NOT "-INT-" (e.g. W-BANKIDGT-USC-...)
+      const detectType = (comment) => {
+        const c = (comment || '').toUpperCase();
+        if (c.includes('-INT-')) return 'transfer';
+        return 'withdrawal';
+      };
+
+      const withdrawalRows = history
+        .filter((h) => h.type === 'BALANCE' && Number(h.profit) < 0)
+        .map((h) => ({
+          mt4_account_id: account.id,
+          user_id: account.user_id,
+          ticket: h.ticket,
+          amount: Math.abs(Number(h.profit)),
+          currency: accountCurrency,
+          type: detectType(h.comment),
+          comment: h.comment || '',
+          close_time: h.closeTime ? new Date(Number(h.closeTime) * 1000).toISOString() : null,
+          status: 'detected',
+        }));
+
+      if (withdrawalRows.length > 0) {
+        const { error: wdErr } = await supabase
+          .from('withdrawals')
+          .upsert(withdrawalRows, { onConflict: 'mt4_account_id,ticket', ignoreDuplicates: true });
+        if (wdErr) logger.error('mt4Push upsertWithdrawals error:', wdErr);
+        else logger.info(`mt4Push: detected ${withdrawalRows.length} withdrawal(s) for account ${account.id}`);
       }
     }
 

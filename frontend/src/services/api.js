@@ -66,3 +66,15 @@ export const statsAPI = {
   getSymbolBreakdown: (accountId) =>
     api.get('/api/stats/symbol-breakdown', { params: accountId ? { account_id: accountId } : {} }),
 };
+
+// ─── Withdrawals ──────────────────────────────────────────────────────────
+export const withdrawalsAPI = {
+  getAll: (params) => api.get('/api/withdrawals', { params }),
+  updateStatus: (id, data) => api.put(`/api/withdrawals/${id}/status`, data),
+};
+
+// ─── Admin ────────────────────────────────────────────────────────────────
+export const adminAPI = {
+  getUsersOverview: () => api.get('/api/admin/users-overview'),
+  updateAccountMeta: (id, data) => api.put(`/api/admin/accounts/${id}`, data),
+};

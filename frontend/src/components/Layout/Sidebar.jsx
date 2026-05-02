@@ -7,6 +7,8 @@ import {
   ChartBarIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
+  ArrowDownTrayIcon,
+  UsersIcon,
 } from '@heroicons/react/24/outline';
 import useAuthStore from '@/store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +20,7 @@ const navItems = [
   { to: '/positions', icon: ArrowsRightLeftIcon, label: 'Open Positions' },
   { to: '/history', icon: ClockIcon, label: 'Trade History' },
   { to: '/analytics', icon: ChartBarIcon, label: 'Analytics' },
+  { to: '/withdrawals', icon: ArrowDownTrayIcon, label: 'Withdraw' },
   { to: '/settings', icon: Cog6ToothIcon, label: 'Settings' },
 ];
 
@@ -77,6 +80,27 @@ export default function Sidebar() {
             {label}
           </NavLink>
         ))}
+
+        {/* Admin section */}
+        {user?.role === 'admin' && (
+          <>
+            <p className="px-2 mt-4 mb-2 text-xs font-semibold text-slate-600 uppercase tracking-wider">Admin</p>
+            <NavLink
+              to="/admin/users"
+              className={({ isActive }) =>
+                clsx(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150',
+                  isActive
+                    ? 'bg-brand-500/15 text-brand-400 border border-brand-500/20'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                )
+              }
+            >
+              <UsersIcon style={{ width: '18px', height: '18px' }} className="flex-shrink-0" />
+              Users Overview
+            </NavLink>
+          </>
+        )}
       </nav>
 
       {/* Logout */}

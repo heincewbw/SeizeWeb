@@ -28,8 +28,10 @@ CREATE TABLE IF NOT EXISTS mt4_accounts (
   server          TEXT NOT NULL,
   broker          TEXT,
   account_name    TEXT NOT NULL,
+  label           TEXT,
   currency        TEXT NOT NULL DEFAULT 'USD',
   leverage        INTEGER DEFAULT 100,
+  initial_balance DECIMAL(18,2) DEFAULT 0,
   balance         DECIMAL(18,2) DEFAULT 0,
   equity          DECIMAL(18,2) DEFAULT 0,
   margin          DECIMAL(18,2) DEFAULT 0,
@@ -121,25 +123,61 @@ CREATE OR REPLACE TRIGGER trg_users_updated_at
 CREATE OR REPLACE TRIGGER trg_mt4_accounts_updated_at
   BEFORE UPDATE ON mt4_accounts FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
+-- ─── Withdrawals (auto-detected from MT4 BALANCE history) ────────────────────
+CREATE TABLE IF NOT EXISTS withdrawals (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  mt4_account_id  UUID NOT NULL REFERENCES mt4_accounts(id) ON DELETE CASCADE,
+  ticket          BIGINT NOT NULL,
+  amount          DECIMAL(18,2) NOT NULL,   -- absolute value (positive)
+  currency        TEXT NOT NULL DEFAULT 'USD',
+  type            TEXT NOT NULL DEFAULT 'withdrawal'
+                    CHECK (type IN ('withdrawal', 'transfer')),
+  comment         TEXT,
+  close_time      TIMESTAMPTZ,
+  status          TEXT NOT NULL DEFAULT 'detected'
+                    CHECK (status IN ('detected', 'verified', 'rejected')),
+  admin_notes     TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(mt4_account_id, ticket)
+);
+
+CREATE INDEX IF NOT EXISTS idx_withdrawals_user_id    ON withdrawals(user_id);
+CREATE INDEX IF NOT EXISTS idx_withdrawals_status      ON withdrawals(status);
+CREATE INDEX IF NOT EXISTS idx_withdrawals_created_at  ON withdrawals(created_at DESC);
+
+CREATE OR REPLACE TRIGGER trg_withdrawals_updated_at
+  BEFORE UPDATE ON withdrawals FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
 -- ─── Row Level Security (RLS) ─────────────────────────────────────────────────
 -- Enable RLS (backend uses service key which bypasses RLS)
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE mt4_accounts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE trade_history ENABLE ROW LEVEL SECURITY;
-ALTER TABLE equity_snapshots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS mt4_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS trade_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS equity_snapshots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS withdrawals ENABLE ROW LEVEL SECURITY;
 
 -- Note: The backend uses the SERVICE ROLE key which bypasses RLS.
 -- These policies are for any direct client access (e.g., Supabase JS client from frontend).
 -- Since our frontend goes through the backend API, RLS is mainly a safety net.
 
+DROP POLICY IF EXISTS "Users can view own data" ON users;
 CREATE POLICY "Users can view own data" ON users
   FOR SELECT USING (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can view own accounts" ON mt4_accounts;
 CREATE POLICY "Users can view own accounts" ON mt4_accounts
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view own trade history" ON trade_history;
 CREATE POLICY "Users can view own trade history" ON trade_history
   FOR SELECT USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view own snapshots" ON equity_snapshots;
 CREATE POLICY "Users can view own snapshots" ON equity_snapshots
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can view own withdrawals" ON withdrawals;
+CREATE POLICY "Users can view own withdrawals" ON withdrawals
   FOR SELECT USING (auth.uid() = user_id);

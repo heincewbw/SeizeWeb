@@ -9,6 +9,8 @@ import Positions from '@/pages/Positions';
 import History from '@/pages/History';
 import Analytics from '@/pages/Analytics';
 import Settings from '@/pages/Settings';
+import Withdrawals from '@/pages/Withdrawals';
+import AdminUsers from '@/pages/AdminUsers';
 import useAuthStore from '@/store/useAuthStore';
 
 function ProtectedRoute({ children }) {
@@ -41,6 +43,8 @@ export default function App() {
         <Route path="positions" element={<Positions />} />
         <Route path="history" element={<History />} />
         <Route path="analytics" element={<Analytics />} />
+        <Route path="withdrawals" element={<Withdrawals />} />
+        <Route path="admin/users" element={<AdminUsers />} />
         <Route path="settings" element={<Settings />} />
       </Route>
 

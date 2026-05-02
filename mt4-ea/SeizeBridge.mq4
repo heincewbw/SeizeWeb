@@ -22,14 +22,15 @@
 input string  ServerUrl    = "http://127.0.0.1:5000"; // Backend server URL
 input string  BridgeToken  = "";                       // Bridge token from SeizeWeb UI
 input int     PushInterval = 300;                      // Push interval in seconds
-input bool    PushHistory  = true;                     // Send trade history on first push
+input bool    PushHistory  = true;                     // Send trade history
 input int     MaxHistory   = 500;                      // Max history trades to send (0 = unlimited)
+input int     HistoryDays  = 90;                       // How many days back to send on first push
 input bool    CentsAccount = true;                     // Divide all monetary values by 100 (cents accounts)
 
 // Global state
-datetime gLastPush    = 0;
-bool     gHistorySent = false;
-double   gDivisor     = 1.0;
+datetime gLastPush        = 0;
+datetime gLastHistorySent = 0;   // tracks last closed-trade timestamp sent
+double   gDivisor         = 1.0;
 
 //--- Init
 int OnInit()
@@ -59,12 +60,15 @@ void OnTick()
    string posJson  = BuildPositionsJson();
    string histJson = "[]";
 
-   if(PushHistory && !gHistorySent)
+   if(PushHistory)
    {
-      // Kirim history 90 hari terakhir saja (bukan semua history)
-      datetime fromTime = TimeCurrent() - 90 * 86400;
-      histJson     = BuildHistoryJson(fromTime);
-      gHistorySent = true;
+      // Pertama kali: ambil HistoryDays hari ke belakang
+      // Selanjutnya: hanya kirim trade yang ditutup sejak push terakhir
+      datetime fromTime = (gLastHistorySent == 0)
+                          ? TimeCurrent() - HistoryDays * 86400
+                          : gLastHistorySent;
+      histJson          = BuildHistoryJson(fromTime);
+      gLastHistorySent  = TimeCurrent();
    }
 
    string login  = IntegerToString(AccountNumber());
@@ -177,17 +181,21 @@ string BuildHistoryJson(datetime fromTime)
    {
       if(!OrderSelect(i, SELECT_BY_POS, MODE_HISTORY)) continue;
       if(OrderCloseTime() < fromTime) continue;
-      if(OrderType() > OP_SELL) continue;
+      // Include BUY, SELL, and BALANCE (type 6) — skip pending orders and CREDIT
+      int ot = OrderType();
+      if(ot != OP_BUY && ot != OP_SELL && ot != 6) continue;
       if(MaxHistory > 0 && count >= MaxHistory) break;
 
       if(!first) arr += ",";
       first = false;
       count++;
 
+      string typeStr = TypeToStr(ot);
+
       arr += "{";
       arr += "\"ticket\":"      + IntegerToString(OrderTicket());
       arr += ",\"symbol\":\""   + EscapeJson(OrderSymbol()) + "\"";
-      arr += ",\"type\":\""     + TypeToStr(OrderType()) + "\"";
+      arr += ",\"type\":\""     + typeStr + "\"";
       arr += ",\"lots\":"       + SafeNum(OrderLots(),       2);
       arr += ",\"openPrice\":"  + SafeNum(OrderOpenPrice(),  5);
       arr += ",\"closePrice\":" + SafeNum(OrderClosePrice(), 5);
@@ -198,7 +206,7 @@ string BuildHistoryJson(datetime fromTime)
       arr += ",\"swap\":"       + SafeNum(OrderSwap()       / gDivisor, 2);
       arr += ",\"openTime\":"   + IntegerToString(OrderOpenTime());
       arr += ",\"closeTime\":"  + IntegerToString(OrderCloseTime());
-      arr += ",\"comment\":\"\"";
+      arr += ",\"comment\":\""  + EscapeJson(OrderComment()) + "\"";
       arr += "}";
    }
    arr += "]";
@@ -216,6 +224,7 @@ string TypeToStr(int type)
       case OP_SELLLIMIT: return "SELL_LIMIT";
       case OP_BUYSTOP:   return "BUY_STOP";
       case OP_SELLSTOP:  return "SELL_STOP";
+      case 6:            return "BALANCE";
       default:           return "UNKNOWN";
    }
 }

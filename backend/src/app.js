@@ -15,6 +15,8 @@ const accountRoutes = require('./routes/accounts');
 const positionRoutes = require('./routes/positions');
 const statsRoutes = require('./routes/stats');
 const mt4PushRoutes = require('./routes/mt4Push');
+const withdrawalRoutes = require('./routes/withdrawals');
+const adminRoutes = require('./routes/admin');
 const supabase = require('./config/supabase');
 
 const app = express();
@@ -123,6 +125,8 @@ app.use('/api/accounts', accountRoutes);
 app.use('/api/positions', positionRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/mt4', mt4PushRoutes);
+app.use('/api/withdrawals', withdrawalRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/health', (req, res) => {
   res.json({
