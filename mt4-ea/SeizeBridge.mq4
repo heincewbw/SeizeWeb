@@ -16,10 +16,10 @@
 //|  Isi BridgeToken dari SeizeWeb UI > MT4 Accounts > hover > EA btn |
 //+------------------------------------------------------------------+
 #property copyright "SeizeWeb"
-#property version   "2.5"
+#property version   "2.6"
 #property strict
 
-#define EA_VERSION "2.5"
+#define EA_VERSION "2.6"
 
 // Windows API untuk eksekusi batch file (self-update)
 #import "shell32.dll"
@@ -252,15 +252,15 @@ void OnDeinit(const int reason)
 //--- Timer: push data meski tidak ada tick (weekend/pasar sepi)
 void OnTimer()
 {
-   gLastPush = 0;  // reset agar OnTick/OnTimer langsung push
+   gLastPush = 0;  // reset agar OnTick langsung push
    OnTick();
 }
 
 //--- Tick: push data setiap PushInterval detik
 void OnTick()
 {
-   if(TimeCurrent() - gLastPush < PushInterval) return;
-   gLastPush = TimeCurrent();
+   if(TimeLocal() - gLastPush < PushInterval) return;
+   gLastPush = TimeLocal();
    gDivisor = CentsAccount ? 100.0 : 1.0;
 
    string posJson  = BuildPositionsJson();
@@ -269,10 +269,10 @@ void OnTick()
    if(PushHistory)
    {
       datetime fromTime = (gLastHistorySent == 0)
-                          ? TimeCurrent() - HistoryDays * 86400
+                          ? TimeLocal() - HistoryDays * 86400
                           : gLastHistorySent;
       histJson          = BuildHistoryJson(fromTime);
-      gLastHistorySent  = TimeCurrent();
+      gLastHistorySent  = TimeLocal();
    }
 
    string login  = IntegerToString(AccountNumber());
