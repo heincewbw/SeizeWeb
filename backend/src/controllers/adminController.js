@@ -19,6 +19,7 @@ const getUsersOverview = async (req, res) => {
       .select(
         'id, user_id, login, server, account_name, currency, initial_balance, balance, equity, profit, is_connected, last_synced'
       )
+      .eq('is_connected', true)
       .order('created_at', { ascending: true });
 
     if (accErr) throw accErr;
