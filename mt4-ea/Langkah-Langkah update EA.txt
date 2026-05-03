@@ -1,0 +1,10 @@
+Alur update ke depannya (1 kali kerja untuk 15 VPS x 5 akun):
+
+Edit SeizeBridge.mq4 di lokal
+Bump versi di dua tempat:
+#define EA_VERSION "2.4" di .mq4
+const EA_VERSION = '2.4' di mt4PushController.js
+Compile di MetaEditor → dapat SeizeBridge.ex4
+Copy SeizeBridge.ex4 ke backend/public/ea/SeizeBridge.ex4
+git add . && git commit && git push → Railway deploy otomatis
+Selesai — semua 75 EA di 15 VPS akan auto-update sendiri saat tick berikutnya
