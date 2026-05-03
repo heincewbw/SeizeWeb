@@ -25,28 +25,30 @@ const getSummary = async (req, res) => {
     const totalProfit     = (accounts || []).reduce((sum, a) => sum + normalize(a, 'profit'), 0);
     const totalFreeMargin = (accounts || []).reduce((sum, a) => sum + normalize(a, 'free_margin'), 0);
 
-    // Trade stats from history
+    // Trade stats from history — join mt4_accounts to get currency for USC normalization
     let histQuery = supabase
       .from('trade_history')
-      .select('profit, symbol, lots')
+      .select('profit, symbol, lots, mt4_accounts(currency)')
       .eq('user_id', req.user.id);
 
     if (account_id) histQuery = histQuery.eq('mt4_account_id', account_id);
 
-    const { data: trades } = await histQuery;
+    const { data: rawTrades } = await histQuery;
 
-    const totalTrades = (trades || []).length;
-    const winningTrades = (trades || []).filter((t) => (t.profit || 0) > 0).length;
-    const losingTrades = (trades || []).filter((t) => (t.profit || 0) < 0).length;
-    const totalPnl = (trades || []).reduce((sum, t) => sum + (t.profit || 0), 0);
+    // Normalize USC profits: trade_history stores raw cents for USC accounts
+    const trades = (rawTrades || []).map((t) => {
+      const divisor = t.mt4_accounts?.currency === 'USC' ? 100 : 1;
+      return { ...t, profit: (Number(t.profit) || 0) / divisor };
+    });
+
+    const totalTrades = trades.length;
+    const winningTrades = trades.filter((t) => t.profit > 0).length;
+    const losingTrades = trades.filter((t) => t.profit < 0).length;
+    const totalPnl = trades.reduce((sum, t) => sum + t.profit, 0);
     const winRate = totalTrades > 0 ? ((winningTrades / totalTrades) * 100).toFixed(2) : 0;
 
-    const grossProfit = (trades || [])
-      .filter((t) => t.profit > 0)
-      .reduce((sum, t) => sum + t.profit, 0);
-    const grossLoss = Math.abs(
-      (trades || []).filter((t) => t.profit < 0).reduce((sum, t) => sum + t.profit, 0)
-    );
+    const grossProfit = trades.filter((t) => t.profit > 0).reduce((sum, t) => sum + t.profit, 0);
+    const grossLoss = Math.abs(trades.filter((t) => t.profit < 0).reduce((sum, t) => sum + t.profit, 0));
     const profitFactor = grossLoss > 0 ? (grossProfit / grossLoss).toFixed(2) : grossProfit > 0 ? '∞' : 0;
 
     return res.json({
