@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { accountsAPI, statsAPI, positionsAPI } from '@/services/api';
+import { accountsAPI, statsAPI } from '@/services/api';
 import useDashboardStore from '@/store/useDashboardStore';
 import toast from 'react-hot-toast';
 import StatCard from '@/components/Dashboard/StatCard';
 import EquityChart from '@/components/Dashboard/EquityChart';
-import OpenPositionsTable from '@/components/Dashboard/OpenPositionsTable';
 import AccountSelector from '@/components/Dashboard/AccountSelector';
 import {
   BanknotesIcon,
@@ -15,7 +14,7 @@ import {
 import { formatCurrency, formatPercent } from '@/utils/format';
 
 export default function Dashboard() {
-  const { accounts, setAccounts, selectedAccountId, setSelectedAccountId, summary, setSummary, positions, setPositions } = useDashboardStore();
+  const { accounts, setAccounts, selectedAccountId, setSelectedAccountId, summary, setSummary } = useDashboardStore();
   const [equityChart, setEquityChart] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -26,16 +25,14 @@ export default function Dashboard() {
   const loadDashboard = async () => {
     setLoading(true);
     try {
-      const [accountsRes, summaryRes, positionsRes, chartRes] = await Promise.all([
+      const [accountsRes, summaryRes, chartRes] = await Promise.all([
         accountsAPI.getAll(),
         statsAPI.getSummary(selectedAccountId),
-        positionsAPI.getOpen(selectedAccountId),
         statsAPI.getEquityChart({ account_id: selectedAccountId, period: '30d' }),
       ]);
 
       setAccounts(accountsRes.data.accounts);
       setSummary(summaryRes.data);
-      setPositions(positionsRes.data.positions);
       setEquityChart(chartRes.data.chart);
     } catch (err) {
       toast.error('Failed to load dashboard data');
@@ -126,8 +123,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Open Positions */}
-      <OpenPositionsTable positions={positions} loading={loading} />
     </div>
   );
 }
