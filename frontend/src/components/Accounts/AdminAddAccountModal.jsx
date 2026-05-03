@@ -131,7 +131,7 @@ export default function AdminAddAccountModal({ user, onClose, onSuccess }) {
 
           {form.currency === 'USC' && (
             <p className="text-xs text-amber-400/80 -mt-1">
-              USC (cents): EA harus di-set <code className="font-mono bg-slate-800 px-1 rounded">CentsAccount=true</code> agar nilai dibagi 100 sebelum dikirim.
+              USC: masukkan Modal Awal dalam <strong>USD</strong> (misal: 1000 untuk $1,000). Nilai disimpan sebagai cents otomatis.
             </p>
           )}
 

@@ -47,9 +47,9 @@ const getUsersOverview = async (req, res) => {
 
       // USC (US Cents): backend stores raw cents from MT4, normalize to USD for all calculations
       const divisor = acc.currency === 'USC' ? 100 : 1;
-      const balance = (Number(acc.balance) || 0) / divisor;
-      const equity  = (Number(acc.equity)  || 0) / divisor;
-      const initialBalance = Number(acc.initial_balance) || 0;  // always stored in USD
+      const balance = (Number(acc.balance)          || 0) / divisor;
+      const equity  = (Number(acc.equity)           || 0) / divisor;
+      const initialBalance = (Number(acc.initial_balance) || 0) / divisor;  // stored as cents for USC, same convention as balance/equity
 
       // Current DD: how much equity dropped below balance (floating loss %)
       const dd = balance > 0 ? ((balance - equity) / balance) * 100 : 0;
@@ -155,9 +155,10 @@ const addAccountForUser = async (req, res) => {
       .single();
 
   const effectiveCurrency = currency || 'USD';
-  // Normalize initial_balance: USC cents → divide by 100 to store as USD equivalent
+  // initial_balance stored as cents for USC (same convention as balance/equity from EA)
+  // Admin enters value in USD → multiply by 100 to store as cents for USC
   const normalizedInitialBalance = initial_balance
-    ? (effectiveCurrency === 'USC' ? Number(initial_balance) / 100 : Number(initial_balance))
+    ? (effectiveCurrency === 'USC' ? Number(initial_balance) * 100 : Number(initial_balance))
     : 0;
 
   let account;

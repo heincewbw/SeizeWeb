@@ -21,12 +21,12 @@ const getAccounts = async (req, res) => {
       const d = 100;
       return {
         ...a,
-        balance:         (a.balance         || 0) / d,
-        equity:          (a.equity          || 0) / d,
-        margin:          (a.margin          || 0) / d,
-        free_margin:     (a.free_margin     || 0) / d,
-        profit:          (a.profit          || 0) / d,
-        // initial_balance is always stored in USD — do NOT divide
+        balance:          (a.balance          || 0) / d,
+        equity:           (a.equity           || 0) / d,
+        margin:           (a.margin           || 0) / d,
+        free_margin:      (a.free_margin      || 0) / d,
+        profit:           (a.profit           || 0) / d,
+        initial_balance:  (a.initial_balance  || 0) / d,  // stored as cents for USC
       };
     });
 
