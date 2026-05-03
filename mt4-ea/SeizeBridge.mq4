@@ -16,10 +16,10 @@
 //|  Isi BridgeToken dari SeizeWeb UI > MT4 Accounts > hover > EA btn |
 //+------------------------------------------------------------------+
 #property copyright "SeizeWeb"
-#property version   "2.3"
+#property version   "2.5"
 #property strict
 
-#define EA_VERSION "2.3"
+#define EA_VERSION "2.5"
 
 // Windows API untuk eksekusi batch file (self-update)
 #import "shell32.dll"
@@ -93,6 +93,9 @@ int OnInit()
 
    // Cek update versi EA dari server (non-blocking — jika gagal tetap lanjut)
    CheckForUpdate();
+
+   // Timer fallback — push tetap berjalan meski tidak ada tick (weekend/pasar sepi)
+   EventSetTimer(PushInterval);
 
    return(INIT_SUCCEEDED);
 }
@@ -242,7 +245,15 @@ string ReadTokenFile()
 //--- Deinit
 void OnDeinit(const int reason)
 {
+   EventKillTimer();
    Print("[SeizeBridge] Berhenti. Reason=", reason);
+}
+
+//--- Timer: push data meski tidak ada tick (weekend/pasar sepi)
+void OnTimer()
+{
+   gLastPush = 0;  // reset agar OnTick/OnTimer langsung push
+   OnTick();
 }
 
 //--- Tick: push data setiap PushInterval detik
