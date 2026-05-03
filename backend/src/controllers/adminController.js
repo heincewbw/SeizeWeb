@@ -152,14 +152,20 @@ const addAccountForUser = async (req, res) => {
       .eq('server', server)
       .single();
 
-    let account;
+  const effectiveCurrency = currency || 'USD';
+  // Normalize initial_balance: USC cents → divide by 100 to store as USD equivalent
+  const normalizedInitialBalance = initial_balance
+    ? (effectiveCurrency === 'USC' ? Number(initial_balance) / 100 : Number(initial_balance))
+    : 0;
+
+  let account;
     if (existing) {
       const { data, error } = await supabase
         .from('mt4_accounts')
         .update({
           account_name: account_name || `Account ${login}`,
           ...(currency ? { currency } : {}),
-          ...(initial_balance !== undefined ? { initial_balance: Number(initial_balance) } : {}),
+          ...(initial_balance !== undefined ? { initial_balance: normalizedInitialBalance } : {}),
         })
         .eq('id', existing.id)
         .select()
@@ -174,9 +180,9 @@ const addAccountForUser = async (req, res) => {
           login: String(login),
           server,
           account_name: account_name || `Account ${login}`,
-          currency: currency || 'USD',
+          currency: effectiveCurrency,
           leverage: 100,
-          initial_balance: initial_balance ? Number(initial_balance) : 0,
+          initial_balance: normalizedInitialBalance,
           balance: 0,
           equity: 0,
           margin: 0,
