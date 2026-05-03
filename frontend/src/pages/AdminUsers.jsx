@@ -306,7 +306,6 @@ export default function AdminUsers() {
                         <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">DD</th>
                         <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Max DD</th>
                         <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Profit</th>
-                        <th className="px-4 py-2.5"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -315,6 +314,14 @@ export default function AdminUsers() {
                           <td className="px-4 py-3">
                             <p className="font-mono text-slate-200 text-xs">{a.login}</p>
                             <p className="text-xs text-slate-500">{a.server}</p>
+                            <button
+                              onClick={() => handleShowToken(a)}
+                              className="mt-1 flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 border border-brand-500/30 hover:border-brand-400/50 rounded px-1.5 py-0.5 transition-colors"
+                              title="Lihat EA Bridge Token"
+                            >
+                              <KeyIcon className="w-3 h-3" />
+                              EA Token
+                            </button>
                           </td>
                           <td className="px-4 py-3">
                             <p className="text-sm text-slate-300">{a.account_name || <span className="text-slate-600 italic">—</span>}</p>
@@ -342,16 +349,6 @@ export default function AdminUsers() {
                             <span className={a.profit >= 0 ? 'text-brand-400' : 'text-danger-400'}>
                               {a.profit >= 0 ? '+' : ''}{formatCurrency(a.profit, a.currency)}
                             </span>
-                          </td>
-                          <td className="px-4 py-3 text-center">
-                            <button
-                              onClick={() => handleShowToken(a)}
-                              className="btn-secondary px-2 py-1 text-xs flex items-center gap-1"
-                              title="Lihat EA Bridge Token"
-                            >
-                              <KeyIcon className="w-3.5 h-3.5" />
-                              EA
-                            </button>
                           </td>
                         </tr>
                       ))}
