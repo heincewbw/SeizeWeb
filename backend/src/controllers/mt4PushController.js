@@ -86,15 +86,45 @@ const receiveMT4Push = async (req, res) => {
 
   try {
     // Find account (connected OR not — EA push activates it)
-    const { data: account, error: accError } = await supabase
+    let { data: account, error: accError } = await supabase
       .from('mt4_accounts')
       .select('id, user_id, is_connected')
       .eq('login', String(login))
       .eq('server', server)
-      .single();
+      .maybeSingle();
 
-    if (accError || !account) {
-      return res.status(404).json({ error: 'Connected account not found' });
+    // Auto-create account if not in DB yet (fallback: assign to first investor)
+    if (!account) {
+      const { data: investorUser } = await supabase
+        .from('users').select('id').eq('role', 'investor').limit(1).maybeSingle();
+      const fallbackUserId = investorUser?.id;
+      if (!fallbackUserId) {
+        return res.status(404).json({ error: 'No user found to assign account to' });
+      }
+      const { data: newAcc, error: newErr } = await supabase
+        .from('mt4_accounts')
+        .insert({
+          user_id: fallbackUserId,
+          login: String(login),
+          server,
+          account_name: `Account ${login}`,
+          currency: account_info?.currency || 'USD',
+          leverage: account_info?.leverage || 100,
+          initial_balance: 0,
+          balance: 0, equity: 0, margin: 0, free_margin: 0, profit: 0,
+          is_connected: false,
+        })
+        .select('id, user_id, is_connected')
+        .single();
+      if (newErr) {
+        return res.status(500).json({ error: 'Failed to auto-create account' });
+      }
+      account = newAcc;
+      logger.info(`MT4 push: auto-created account login=${login} server=${server}`);
+    }
+
+    if (accError && !account) {
+      return res.status(404).json({ error: 'Account not found' });
     }
 
     const now = new Date().toISOString();
@@ -317,59 +347,55 @@ const eaAutoRegister = async (req, res) => {
 
   try {
     // Find an mt4_accounts row for this login+server (any user)
-    let { data: account } = await supabase
+    const { data: account } = await supabase
       .from('mt4_accounts')
       .select('id, user_id')
       .eq('login', String(login))
       .eq('server', server)
       .limit(1)
-      .single();
+      .maybeSingle();
 
-    // Auto-create account under a default admin user if not registered yet
+    // Auto-create account under an investor if not registered yet
     if (!account) {
-      // Find an investor user to assign the account to temporarily
       const { data: investorUser } = await supabase
         .from('users')
         .select('id')
         .eq('role', 'investor')
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (!investorUser) {
-        return res.status(404).json({
-          error: 'Account not registered in SeizeWeb and no investor user found to auto-create.',
-        });
+        // Fall through — still return token even if we can't auto-create
+        logger.warn(`eaAutoRegister: no investor user found to auto-create for login=${login}`);
+      } else {
+        const { error: createErr } = await supabase
+          .from('mt4_accounts')
+          .insert({
+            user_id: investorUser.id,
+            login: String(login),
+            server,
+            account_name: account_name || `Account ${login}`,
+            currency: 'USD',
+            leverage: 100,
+            initial_balance: 0,
+            balance: 0,
+            equity: 0,
+            margin: 0,
+            free_margin: 0,
+            profit: 0,
+            is_connected: false,
+          });
+
+        if (createErr && createErr.code !== '23505') {
+          // 23505 = unique violation (account already exists under another user) — ignore
+          logger.error('eaAutoRegister auto-create error:', createErr);
+        } else {
+          logger.info(`EA auto-register: auto-created account login=${login} server=${server}`);
+        }
       }
-
-      const { data: newAccount, error: createErr } = await supabase
-        .from('mt4_accounts')
-        .insert({
-          user_id: investorUser.id,
-          login: String(login),
-          server,
-          account_name: account_name || `Account ${login}`,
-          currency: 'USD',
-          leverage: 100,
-          initial_balance: 0,
-          balance: 0,
-          equity: 0,
-          margin: 0,
-          free_margin: 0,
-          profit: 0,
-          is_connected: false,
-        })
-        .select('id, user_id')
-        .single();
-
-      if (createErr) {
-        logger.error('eaAutoRegister auto-create error:', createErr);
-        return res.status(500).json({ error: 'Failed to auto-create account' });
-      }
-
-      account = newAccount;
-      logger.info(`EA auto-register: auto-created account login=${login} server=${server} under admin user`);
     }
 
+    // Always return token if secret is valid — account existence is not required
     const token = generateBridgeToken(login, server);
     logger.info(`EA auto-register: login=${login} server=${server}`);
     return res.json({ bridge_token: token });
