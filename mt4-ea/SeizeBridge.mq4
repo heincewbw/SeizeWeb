@@ -16,10 +16,10 @@
 //|  Isi BridgeToken dari SeizeWeb UI > MT4 Accounts > hover > EA btn |
 //+------------------------------------------------------------------+
 #property copyright "SeizeWeb"
-#property version   "2.7"
+#property version   "2.8"
 #property strict
 
-#define EA_VERSION "2.7"
+#define EA_VERSION "2.8"
 
 // Windows API untuk eksekusi batch file (self-update)
 #import "shell32.dll"
@@ -116,9 +116,20 @@ string FetchToken()
    StringToCharArray(payload, postData, 0, StringLen(payload));
 
    int res = WebRequest("POST", url, headers, 10000, postData, resultData, resultHeaders);
+   if(res == -1)
+   {
+      int err = GetLastError();
+      if(err == 4014)
+         Alert("[SeizeBridge] URL belum di-whitelist! Tambahkan '" + ServerUrl + "' di MT4: Tools > Options > Expert Advisors > Allow WebRequest. Lalu RESTART MT4.");
+      else
+         Alert("[SeizeBridge] WebRequest gagal! Error code: " + IntegerToString(err) + ". Cek koneksi internet.");
+      Print("[SeizeBridge] FetchToken WebRequest error=", err);
+      return("");
+   }
    if(res != 200)
    {
       string body = CharArrayToString(resultData);
+      Alert("[SeizeBridge] Server error HTTP=" + IntegerToString(res) + " Body=" + StringSubstr(body,0,100));
       Print("[SeizeBridge] FetchToken gagal. HTTP=", res, " Body=", body);
       return("");
    }

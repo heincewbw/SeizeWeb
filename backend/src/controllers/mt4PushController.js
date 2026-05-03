@@ -5,7 +5,7 @@ const supabase = require('../config/supabase');
 const logger = require('../config/logger');
 
 // Versi EA yang sedang aktif — bump setiap kali update SeizeBridge.mq4
-const EA_VERSION = '2.7';
+const EA_VERSION = '2.8';
 
 // In-memory cache for open positions (keyed by "login:server")
 const positionCache = new Map();
