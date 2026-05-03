@@ -119,6 +119,10 @@ const authLimiter = rateLimit({
 });
 app.use('/auth/', authLimiter);
 
+// ─── Static EA downloads ─────────────────────────────────────────────────────
+// Melayani SeizeBridge.ex4 dan ea-version.json untuk self-update EA
+app.use('/ea', express.static(path.join(__dirname, '../public/ea')));
+
 // ─── Routes ──────────────────────────────────────────────────────────────────
 app.use('/auth', authRoutes);
 app.use('/api/accounts', accountRoutes);

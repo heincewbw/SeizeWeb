@@ -16,8 +16,17 @@
 //|  Isi BridgeToken dari SeizeWeb UI > MT4 Accounts > hover > EA btn |
 //+------------------------------------------------------------------+
 #property copyright "SeizeWeb"
-#property version   "2.1"
+#property version   "2.2"
 #property strict
+
+#define EA_VERSION "2.2"
+
+// Windows API untuk replace file saat self-update
+#import "kernel32.dll"
+  bool MoveFileExW(const string lpExistingFileName, const string lpNewFileName, int dwFlags);
+#import
+#define MOVEFILE_REPLACE_EXISTING 1
+#define MOVEFILE_COPY_ALLOWED     2
 
 // Input parameters
 input string  ServerUrl    = "https://seizeweb-production.up.railway.app"; // Backend server URL
@@ -82,14 +91,90 @@ int OnInit()
       Print("[SeizeBridge] Token berhasil di-fetch dan di-cache. Login=", AccountNumber());
    }
 
+   // Cek apakah ada versi EA terbaru di server, download & restart jika ada
+   CheckForUpdate();
+
    Print("[SeizeBridge] Mulai. Server=", ServerUrl, " Login=", AccountNumber());
    return(INIT_SUCCEEDED);
 }
 
-//--- Deinit
-void OnDeinit(const int reason)
+//--- Cek dan download versi EA terbaru dari server
+void CheckForUpdate()
 {
-   Print("[SeizeBridge] Berhenti. Reason=", reason);
+   string url = ServerUrl + "/ea/ea-version.json";
+   string headers = "";
+   char   postData[], resultData[];
+   string resultHeaders;
+
+   int res = WebRequest("GET", url, headers, 10000, postData, resultData, resultHeaders);
+   if(res != 200)
+   {
+      Print("[SeizeBridge] Cek update gagal. HTTP=", res);
+      return;
+   }
+
+   string body = CharArrayToString(resultData);
+
+   // Parse "version" field dari JSON
+   int idx = StringFind(body, "\"version\":\"");
+   if(idx < 0) return;
+   idx += 11;
+   int end = StringFind(body, "\"", idx);
+   if(end < 0) return;
+   string serverVersion = StringSubstr(body, idx, end - idx);
+
+   if(serverVersion == EA_VERSION)
+   {
+      Print("[SeizeBridge] EA sudah versi terbaru (v", EA_VERSION, ")");
+      return;
+   }
+
+   // Parse download URL
+   int urlIdx = StringFind(body, "\"url\":\"");
+   if(urlIdx < 0) return;
+   urlIdx += 7;
+   int urlEnd = StringFind(body, "\"", urlIdx);
+   if(urlEnd < 0) return;
+   string downloadUrl = StringSubstr(body, urlIdx, urlEnd - urlIdx);
+
+   Print("[SeizeBridge] Update tersedia: v", EA_VERSION, " -> v", serverVersion, ". Mengunduh...");
+
+   // Download .ex4 baru
+   char dlData[], emptyPost[];
+   string dlHeaders;
+   int dlRes = WebRequest("GET", downloadUrl, "", 30000, emptyPost, dlData, dlHeaders);
+   if(dlRes != 200 || ArraySize(dlData) == 0)
+   {
+      Print("[SeizeBridge] Download EA baru gagal. HTTP=", dlRes);
+      return;
+   }
+
+   // Tulis ke MQL4/Files/ (sementara)
+   string tempFile = "SeizeBridge_update.ex4";
+   int h = FileOpen(tempFile, FILE_WRITE | FILE_BIN);
+   if(h == INVALID_HANDLE)
+   {
+      Print("[SeizeBridge] Gagal buat file temp. Error=", GetLastError());
+      return;
+   }
+   FileWriteArray(h, dlData, 0, ArraySize(dlData));
+   FileClose(h);
+
+   // Pindahkan dari MQL4/Files/ ke MQL4/Experts/ (timpa file lama)
+   string dataPath = TerminalInfoString(TERMINAL_DATA_PATH);
+   string srcPath  = dataPath + "\\MQL4\\Files\\" + tempFile;
+   string dstPath  = dataPath + "\\MQL4\\Experts\\SeizeBridge.ex4";
+
+   bool moved = MoveFileExW(srcPath, dstPath, MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
+   if(!moved)
+   {
+      Print("[SeizeBridge] Gagal replace file EA. Copy manual: MQL4/Files/",
+            tempFile, " -> MQL4/Experts/SeizeBridge.ex4");
+      return;
+   }
+
+   Print("[SeizeBridge] Update v", serverVersion, " berhasil! Restarting EA...");
+   ExpertRemove();
 }
 
 //--- Auto-fetch token dari endpoint ea-autoregister
