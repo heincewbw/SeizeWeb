@@ -310,7 +310,7 @@ export default function AdminUsers() {
                     </thead>
                     <tbody>
                       {u.accounts.map((a) => (
-                        <tr key={a.id} className={clsx('border-t border-slate-800/50 transition-colors', a.is_connected ? 'hover:bg-slate-800/20' : 'opacity-40 hover:opacity-60')}>
+                        <tr key={a.id} className="border-t border-slate-800/50 transition-colors hover:bg-slate-800/20">
                           <td className="px-4 py-3">
                             <p className="font-mono text-slate-200 text-xs">{a.login}</p>
                             <p className="text-xs text-slate-500">{a.server}</p>
@@ -325,6 +325,7 @@ export default function AdminUsers() {
                           </td>
                           <td className="px-4 py-3">
                             <p className="text-sm text-slate-300">{a.account_name || <span className="text-slate-600 italic">—</span>}</p>
+                            {!a.is_connected && <span className="text-xs text-slate-600 italic">EA offline</span>}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <EditableCell
