@@ -6,7 +6,7 @@ const getAccounts = async (req, res) => {
   try {
     const { data: accounts, error } = await supabase
       .from('mt4_accounts')
-      .select('id, login, server, broker, account_name, currency, leverage, balance, equity, margin, free_margin, profit, is_connected, last_synced, created_at')
+      .select('id, login, server, broker, account_name, currency, leverage, initial_balance, balance, equity, margin, free_margin, profit, is_connected, last_synced, created_at')
       .eq('user_id', req.user.id)
       .order('created_at', { ascending: false });
 
@@ -21,11 +21,12 @@ const getAccounts = async (req, res) => {
       const d = 100;
       return {
         ...a,
-        balance:     (a.balance     || 0) / d,
-        equity:      (a.equity      || 0) / d,
-        margin:      (a.margin      || 0) / d,
-        free_margin: (a.free_margin || 0) / d,
-        profit:      (a.profit      || 0) / d,
+        balance:         (a.balance         || 0) / d,
+        equity:          (a.equity          || 0) / d,
+        margin:          (a.margin          || 0) / d,
+        free_margin:     (a.free_margin     || 0) / d,
+        profit:          (a.profit          || 0) / d,
+        // initial_balance is always stored in USD — do NOT divide
       };
     });
 

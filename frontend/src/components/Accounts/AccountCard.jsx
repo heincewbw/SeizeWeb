@@ -12,7 +12,13 @@ export default function AccountCard({ account, isAdmin, onSync, onDisconnect, on
   // Backend returns USD-normalized values for all currencies including USC
   const equity = account.equity || 0;
   const balance = account.balance || 0;
-  const profitPct = balance > 0 ? (((equity - balance) / balance) * 100).toFixed(2) : 0;
+  const initialBalance = account.initial_balance || 0;
+  const runningProfit = initialBalance > 0 ? equity - initialBalance : equity - balance;
+  const runningProfitPct = initialBalance > 0 && initialBalance !== 0
+    ? ((runningProfit / initialBalance) * 100).toFixed(2)
+    : balance > 0 ? (((equity - balance) / balance) * 100).toFixed(2) : 0;
+  const floatingPL = account.profit || 0;
+  const floatingPct = balance > 0 ? (((equity - balance) / balance) * 100).toFixed(2) : 0;
   const isProfit = equity >= balance;
 
   const handleShowToken = async () => {
@@ -72,14 +78,17 @@ export default function AccountCard({ account, isAdmin, onSync, onDisconnect, on
         </div>
         <div className="bg-dark-900 rounded-lg p-3">
           <p className="text-xs text-slate-500 mb-0.5">Floating P/L</p>
-          <p className={`font-mono font-semibold text-sm ${account.profit >= 0 ? 'text-brand-400' : 'text-danger-400'}`}>
-            {formatCurrency(account.profit || 0)}{' '}
-            <span className="text-xs opacity-70">({profitPct}%)</span>
+          <p className={`font-mono font-semibold text-sm ${floatingPL >= 0 ? 'text-brand-400' : 'text-danger-400'}`}>
+            {floatingPL >= 0 ? '+' : ''}{formatCurrency(floatingPL)}{' '}
+            <span className="text-xs opacity-70">({floatingPct}%)</span>
           </p>
         </div>
         <div className="bg-dark-900 rounded-lg p-3">
-          <p className="text-xs text-slate-500 mb-0.5">Free Margin</p>
-          <p className="font-mono font-semibold text-slate-300 text-sm">{formatCurrency(account.free_margin || 0)}</p>
+          <p className="text-xs text-slate-500 mb-0.5">Running Profit</p>
+          <p className={`font-mono font-semibold text-sm ${runningProfit >= 0 ? 'text-brand-400' : 'text-danger-400'}`}>
+            {runningProfit >= 0 ? '+' : ''}{formatCurrency(runningProfit)}{' '}
+            <span className="text-xs opacity-70">({runningProfitPct}%)</span>
+          </p>
         </div>
       </div>
 
