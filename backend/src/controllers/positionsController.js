@@ -10,7 +10,7 @@ const getOpenPositions = async (req, res) => {
     // Get user's connected accounts
     let accountQuery = supabase
       .from('mt4_accounts')
-      .select('id, login, server')
+      .select('id, login, server, currency')
       .eq('user_id', req.user.id)
       .eq('is_connected', true);
 
@@ -39,23 +39,27 @@ const getOpenPositions = async (req, res) => {
     if (dbPositions && dbPositions.length > 0) {
       // Normalise field names to match frontend expectations
       const accountMap = Object.fromEntries(accounts.map((a) => [a.id, a]));
-      const positions = dbPositions.map((p) => ({
-        ticket: p.ticket,
-        symbol: p.symbol,
-        type: p.type,
-        lots: p.lots,
-        openPrice: p.open_price,
-        currentPrice: p.current_price,
-        stopLoss: p.stop_loss,
-        takeProfit: p.take_profit,
-        profit: p.profit,
-        swap: p.swap,
-        openTime: p.open_time ? Math.floor(new Date(p.open_time).getTime() / 1000) : null,
-        comment: p.comment,
-        account_id: p.mt4_account_id,
-        login: accountMap[p.mt4_account_id]?.login,
-        server: accountMap[p.mt4_account_id]?.server,
-      }));
+      const positions = dbPositions.map((p) => {
+        const acc = accountMap[p.mt4_account_id];
+        const divisor = acc?.currency === 'USC' ? 100 : 1;
+        return {
+          ticket: p.ticket,
+          symbol: p.symbol,
+          type: p.type,
+          lots: p.lots,
+          openPrice: p.open_price,
+          currentPrice: p.current_price,
+          stopLoss: p.stop_loss,
+          takeProfit: p.take_profit,
+          profit: (Number(p.profit) || 0) / divisor,
+          swap: (Number(p.swap) || 0) / divisor,
+          openTime: p.open_time ? Math.floor(new Date(p.open_time).getTime() / 1000) : null,
+          comment: p.comment,
+          account_id: p.mt4_account_id,
+          login: acc?.login,
+          server: acc?.server,
+        };
+      });
       return res.json({ positions });
     }
 
@@ -90,7 +94,7 @@ const getTradeHistory = async (req, res) => {
 
     let query = supabase
       .from('trade_history')
-      .select('*', { count: 'exact' })
+      .select('*, mt4_accounts(currency)', { count: 'exact' })
       .eq('user_id', req.user.id)
       .order('close_time', { ascending: false })
       .range(offset, offset + parseInt(limit) - 1);
@@ -109,8 +113,20 @@ const getTradeHistory = async (req, res) => {
 
     if (error) throw error;
 
+    // Normalize USC values: trade_history stores raw cents for USC accounts
+    const normalizedTrades = (trades || []).map((t) => {
+      const divisor = t.mt4_accounts?.currency === 'USC' ? 100 : 1;
+      if (divisor === 1) return t;
+      return {
+        ...t,
+        profit:     (Number(t.profit)     || 0) / divisor,
+        commission: (Number(t.commission) || 0) / divisor,
+        swap:       (Number(t.swap)       || 0) / divisor,
+      };
+    });
+
     return res.json({
-      trades: trades || [],
+      trades: normalizedTrades,
       pagination: {
         total: count,
         page: parseInt(page),
