@@ -19,14 +19,14 @@
 #property version   "2.2"
 #property strict
 
-#define EA_VERSION "2.2"
-
 // Windows API untuk replace file saat self-update
 #import "kernel32.dll"
-  bool MoveFileExW(const string lpExistingFileName, const string lpNewFileName, int dwFlags);
+  bool MoveFileExW(string lpExistingFileName, string lpNewFileName, int dwFlags);
 #import
-#define MOVEFILE_REPLACE_EXISTING 1
-#define MOVEFILE_COPY_ALLOWED     2
+
+const string EA_VERSION              = "2.2";
+const int    MOVEFILE_REPLACE_EXISTING = 1;
+const int    MOVEFILE_COPY_ALLOWED     = 2;
 
 // Input parameters
 input string  ServerUrl    = "https://seizeweb-production.up.railway.app"; // Backend server URL
