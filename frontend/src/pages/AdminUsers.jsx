@@ -158,10 +158,10 @@ export default function AdminUsers() {
     setExpanded((prev) => ({ ...prev, [newAccount.user_id]: true }));
   };
 
-  // Aggregate totals across all accounts
+  // Aggregate totals across connected accounts only
   const totals = users.reduce(
     (acc, u) => {
-      u.accounts.forEach((a) => {
+      u.accounts.filter((a) => a.is_connected).forEach((a) => {
         acc.initialBalance += a.initial_balance || 0;
         acc.balance += a.balance || 0;
         acc.equity += a.equity || 0;
@@ -311,7 +311,7 @@ export default function AdminUsers() {
                     </thead>
                     <tbody>
                       {u.accounts.map((a) => (
-                        <tr key={a.id} className="border-t border-slate-800/50 hover:bg-slate-800/20 transition-colors">
+                        <tr key={a.id} className={clsx('border-t border-slate-800/50 transition-colors', a.is_connected ? 'hover:bg-slate-800/20' : 'opacity-40 hover:opacity-60')}>
                           <td className="px-4 py-3">
                             <p className="font-mono text-slate-200 text-xs">{a.login}</p>
                             <p className="text-xs text-slate-500">{a.server}</p>
