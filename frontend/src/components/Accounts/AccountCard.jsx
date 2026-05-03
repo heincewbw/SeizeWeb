@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { formatCurrency, formatDate } from '@/utils/format';
 import { ArrowPathIcon, XMarkIcon, ClipboardIcon, ClipboardDocumentCheckIcon, TrashIcon } from '@heroicons/react/24/outline';
 import api from '@/services/api';
+import toast from 'react-hot-toast';
 
 export default function AccountCard({ account, isAdmin, onSync, onDisconnect, onDelete, isSyncing }) {
   const [bridgeToken, setBridgeToken] = useState(null);
@@ -23,8 +24,8 @@ export default function AccountCard({ account, isAdmin, onSync, onDisconnect, on
     try {
       const res = await api.get(`/api/mt4/token?login=${account.login}&server=${encodeURIComponent(account.server)}`);
       setBridgeToken(res.data.bridge_token);
-    } catch {
-      // ignore
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Gagal mengambil token. Hubungi admin.');
     } finally {
       setLoadingToken(false);
     }
@@ -87,7 +88,7 @@ export default function AccountCard({ account, isAdmin, onSync, onDisconnect, on
         <div className="text-xs text-slate-600">
           {account.currency === 'USC' ? 'USD (USC÷100)' : account.currency} · 1:{account.leverage} · {account.broker}
         </div>
-        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex gap-2 transition-opacity">
           <button
             onClick={handleShowToken}
             disabled={loadingToken}
