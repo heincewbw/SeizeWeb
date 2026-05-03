@@ -5,8 +5,8 @@ const { authenticateToken } = require('../middleware/auth');
 
 const { requireAdmin } = require('../middleware/auth');
 
-// GET /api/mt4/token?login=xxx&server=xxx  (admin only)
-router.get('/token', authenticateToken, requireAdmin, getBridgeToken);
+// GET /api/mt4/token?login=xxx&server=xxx  (any authenticated user — controller validates ownership)
+router.get('/token', authenticateToken, getBridgeToken);
 
 // POST /api/mt4/push  (authenticated via bridge token, NOT user JWT)
 router.post('/push', receiveMT4Push);

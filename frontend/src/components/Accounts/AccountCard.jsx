@@ -88,20 +88,20 @@ export default function AccountCard({ account, isAdmin, onSync, onDisconnect, on
           {account.currency === 'USC' ? 'USD (USC÷100)' : account.currency} · 1:{account.leverage} · {account.broker}
         </div>
         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={handleShowToken}
+            disabled={loadingToken}
+            className="btn-secondary px-2.5 py-1.5 text-xs"
+            title="EA Bridge Token"
+          >
+            {loadingToken ? (
+              <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <span className="text-xs font-mono">EA</span>
+            )}
+          </button>
           {isAdmin && (
             <>
-              <button
-                onClick={handleShowToken}
-                disabled={loadingToken}
-                className="btn-secondary px-2.5 py-1.5 text-xs"
-                title="EA Bridge Token"
-              >
-                {loadingToken ? (
-                  <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <span className="text-xs font-mono">EA</span>
-                )}
-              </button>
               <button
                 onClick={onSync}
                 disabled={isSyncing}

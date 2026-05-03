@@ -32,14 +32,18 @@ const getBridgeToken = async (req, res) => {
   }
 
   try {
-    // Verify the account belongs to this user
-    const { data: account, error } = await supabase
+    // Admin can fetch token for any account; regular users only for their own
+    const query = supabase
       .from('mt4_accounts')
       .select('id')
-      .eq('user_id', req.user.id)
       .eq('login', String(login))
-      .eq('server', server)
-      .single();
+      .eq('server', server);
+
+    if (req.user.role !== 'admin') {
+      query.eq('user_id', req.user.id);
+    }
+
+    const { data: account, error } = await query.single();
 
     if (error || !account) {
       return res.status(404).json({ error: 'Account not found' });
