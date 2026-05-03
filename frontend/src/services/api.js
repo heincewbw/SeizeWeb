@@ -79,4 +79,6 @@ export const adminAPI = {
   updateAccountMeta: (id, data) => api.put(`/api/admin/accounts/${id}`, data),
   addAccount: (data) => api.post('/api/admin/accounts', data),
   getToken: (login, server) => api.get(`/api/mt4/token?login=${login}&server=${encodeURIComponent(server)}`),
+  deleteAccount: (id) => api.delete(`/api/accounts/${id}`),
+  disconnectAccount: (id) => api.post(`/api/accounts/${id}/disconnect`),
 };
