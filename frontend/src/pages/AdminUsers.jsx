@@ -4,8 +4,9 @@ import useAuthStore from '@/store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '@/utils/format';
-import { PencilIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, CheckIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
+import AdminAddAccountModal from '@/components/Accounts/AdminAddAccountModal';
 
 function DDCell({ value }) {
   const v = Number(value) || 0;
@@ -56,6 +57,7 @@ export default function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState({});
+  const [addModal, setAddModal] = useState(null); // user object or null
 
   useEffect(() => {
     if (user && user.role !== 'admin') {
@@ -100,6 +102,36 @@ export default function AdminUsers() {
   const toggleExpand = (userId) =>
     setExpanded((prev) => ({ ...prev, [userId]: !prev[userId] }));
 
+  const handleAccountAdded = (newAccount) => {
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === newAccount.user_id
+          ? {
+              ...u,
+              accounts: [
+                ...u.accounts,
+                {
+                  id: newAccount.id,
+                  login: newAccount.login,
+                  server: newAccount.server,
+                  account_name: newAccount.account_name,
+                  currency: newAccount.currency,
+                  initial_balance: Number(newAccount.initial_balance) || 0,
+                  balance: 0,
+                  equity: 0,
+                  profit: 0,
+                  dd: 0,
+                  max_dd: 0,
+                  is_connected: false,
+                },
+              ],
+            }
+          : u
+      )
+    );
+    setExpanded((prev) => ({ ...prev, [newAccount.user_id]: true }));
+  };
+
   // Aggregate totals across all accounts
   const totals = users.reduce(
     (acc, u) => {
@@ -116,6 +148,13 @@ export default function AdminUsers() {
 
   return (
     <div className="space-y-6">
+      {addModal && (
+        <AdminAddAccountModal
+          user={addModal}
+          onClose={() => setAddModal(null)}
+          onSuccess={handleAccountAdded}
+        />
+      )}
       <div>
         <h2 className="text-2xl font-bold text-slate-100">Users Overview</h2>
         <p className="text-sm text-slate-400 mt-0.5">Seluruh user dan performa akun MT4 mereka</p>
@@ -162,6 +201,13 @@ export default function AdminUsers() {
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setAddModal(u); }}
+                    className="flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 border border-brand-500/30 hover:border-brand-400/50 rounded-lg px-2.5 py-1 transition-colors"
+                  >
+                    <PlusIcon className="w-3.5 h-3.5" />
+                    Tambah Akun
+                  </button>
                   <span className="text-xs text-slate-500">{u.accounts.length} akun</span>
                   <span className={clsx(
                     'text-xs px-2 py-0.5 rounded-full border',

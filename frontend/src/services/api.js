@@ -77,4 +77,5 @@ export const withdrawalsAPI = {
 export const adminAPI = {
   getUsersOverview: () => api.get('/api/admin/users-overview'),
   updateAccountMeta: (id, data) => api.put(`/api/admin/accounts/${id}`, data),
+  addAccount: (data) => api.post('/api/admin/accounts', data),
 };

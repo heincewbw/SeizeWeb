@@ -97,13 +97,12 @@ const receiveMT4Push = async (req, res) => {
 
     // Update account balance/equity — also activate if first push
     if (account_info) {
-      const divisor = account_info.currency === 'USC' ? 100 : 1;
       const updatePayload = {
-        balance: account_info.balance / divisor,
-        equity: account_info.equity / divisor,
-        margin: account_info.margin / divisor,
-        free_margin: account_info.freeMargin / divisor,
-        profit: account_info.profit / divisor,
+        balance: account_info.balance,
+        equity: account_info.equity,
+        margin: account_info.margin,
+        free_margin: account_info.freeMargin,
+        profit: account_info.profit,
         is_connected: true,
         last_synced: now,
       };
@@ -133,9 +132,9 @@ const receiveMT4Push = async (req, res) => {
         const { error: snapErr } = await supabase.from('equity_snapshots').insert({
           mt4_account_id: account.id,
           user_id: account.user_id,
-          balance: account_info.balance / divisor,
-          equity: account_info.equity / divisor,
-          profit: account_info.profit / divisor,
+          balance: account_info.balance,
+          equity: account_info.equity,
+          profit: account_info.profit,
         });
         if (snapErr) logger.error('mt4Push insertSnapshot error:', snapErr);
       }
@@ -237,11 +236,10 @@ const receiveMT4Push = async (req, res) => {
           mt4_account_id: account.id,
           user_id: account.user_id,
           ticket: h.ticket,
-          amount: Math.abs(Number(h.profit)) / (accountCurrency === 'USC' ? 100 : 1),
+          amount: Math.abs(Number(h.profit)),
           currency: accountCurrency,
           type: detectType(h.comment),
           comment: h.comment || '',
-          notes: h.comment || '',
           close_time: h.closeTime ? new Date(Number(h.closeTime) * 1000).toISOString() : null,
           status: 'detected',
         }));

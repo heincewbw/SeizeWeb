@@ -34,7 +34,7 @@ input int     PushInterval = 300;                      // Push interval in secon
 input bool    PushHistory  = true;                     // Send trade history
 input int     MaxHistory   = 500;                      // Max history trades to send (0 = unlimited)
 input int     HistoryDays  = 90;                       // How many days back to send on first push
-input bool    CentsAccount = true;                     // Divide all monetary values by 100 (cents accounts)
+input bool    CentsAccount = false;                    // Divide all monetary values by 100 (cents accounts)
 
 // Global state
 datetime gLastPush        = 0;

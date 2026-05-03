@@ -1,10 +1,17 @@
 Alur update ke depannya (1 kali kerja untuk 15 VPS x 5 akun):
+1. Edit SeizeBridge.mq4 di lokal
+2. Bump versi di dua tempat:
+3. #define EA_VERSION "2.4" di .mq4
+4. const EA_VERSION = '2.4' di mt4PushController.js
+5. Compile di MetaEditor → dapat SeizeBridge.ex4
+6. Copy SeizeBridge.ex4 ke backend/public/ea/SeizeBridge.ex4
+7. git add . && git commit && git push → Railway deploy otomatis
+8. Selesai — semua 75 EA di 15 VPS akan auto-update sendiri saat tick berikutnya
 
-Edit SeizeBridge.mq4 di lokal
-Bump versi di dua tempat:
-#define EA_VERSION "2.4" di .mq4
-const EA_VERSION = '2.4' di mt4PushController.js
-Compile di MetaEditor → dapat SeizeBridge.ex4
-Copy SeizeBridge.ex4 ke backend/public/ea/SeizeBridge.ex4
-git add . && git commit && git push → Railway deploy otomatis
-Selesai — semua 75 EA di 15 VPS akan auto-update sendiri saat tick berikutnya
+Yang terjadi di MT4:
+* EA detect versi server != versi lokal
+* Download .ex4 baru ke MQL4/Files/
+* Buat batch script yang copy file ke MQL4/Experts/
+* Unload diri sendiri (ExpertRemove())
+* Batch script jalan 4 detik kemudian → file ter-replace
+* MT4 load EA versi baru otomatis

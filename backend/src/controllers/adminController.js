@@ -123,4 +123,78 @@ const updateAccountMeta = async (req, res) => {
   }
 };
 
-module.exports = { getUsersOverview, updateAccountMeta };
+// POST /api/admin/accounts — create MT4 account for a specific user
+const addAccountForUser = async (req, res) => {
+  const { user_id, login, server, account_name, currency, initial_balance } = req.body;
+
+  if (!user_id || !login || !server) {
+    return res.status(400).json({ error: 'user_id, login, dan server wajib diisi' });
+  }
+
+  // Verify user exists
+  const { data: targetUser, error: userErr } = await supabase
+    .from('users')
+    .select('id')
+    .eq('id', user_id)
+    .single();
+
+  if (userErr || !targetUser) {
+    return res.status(404).json({ error: 'User tidak ditemukan' });
+  }
+
+  try {
+    // Check if account already exists for this user
+    const { data: existing } = await supabase
+      .from('mt4_accounts')
+      .select('id')
+      .eq('user_id', user_id)
+      .eq('login', String(login))
+      .eq('server', server)
+      .single();
+
+    let account;
+    if (existing) {
+      const { data, error } = await supabase
+        .from('mt4_accounts')
+        .update({
+          account_name: account_name || `Account ${login}`,
+          ...(currency ? { currency } : {}),
+          ...(initial_balance !== undefined ? { initial_balance: Number(initial_balance) } : {}),
+        })
+        .eq('id', existing.id)
+        .select()
+        .single();
+      if (error) throw error;
+      account = data;
+    } else {
+      const { data, error } = await supabase
+        .from('mt4_accounts')
+        .insert({
+          user_id,
+          login: String(login),
+          server,
+          account_name: account_name || `Account ${login}`,
+          currency: currency || 'USD',
+          leverage: 100,
+          initial_balance: initial_balance ? Number(initial_balance) : 0,
+          balance: 0,
+          equity: 0,
+          margin: 0,
+          free_margin: 0,
+          profit: 0,
+          is_connected: false,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      account = data;
+    }
+
+    return res.status(201).json({ account });
+  } catch (err) {
+    logger.error('AddAccountForUser exception:', err);
+    return res.status(500).json({ error: 'Gagal membuat akun' });
+  }
+};
+
+module.exports = { getUsersOverview, updateAccountMeta, addAccountForUser };
