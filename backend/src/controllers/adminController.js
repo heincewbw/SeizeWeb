@@ -145,14 +145,18 @@ const addAccountForUser = async (req, res) => {
   }
 
   try {
-    // Check if account already exists for this user
+    // Check if account already exists globally (login+server is now unique across all users)
     const { data: existing } = await supabase
       .from('mt4_accounts')
-      .select('id')
-      .eq('user_id', user_id)
+      .select('id, user_id')
       .eq('login', String(login))
       .eq('server', server)
       .single();
+
+    // If account exists under a DIFFERENT user, reject
+    if (existing && existing.user_id !== user_id) {
+      return res.status(409).json({ error: `Akun ${login}@${server} sudah terdaftar di bawah investor lain` });
+    }
 
   const effectiveCurrency = currency || 'USD';
   // initial_balance stored as cents for USC (same convention as balance/equity from EA)
