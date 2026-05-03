@@ -4,7 +4,7 @@ import useAuthStore from '@/store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '@/utils/format';
-import { PencilIcon, CheckIcon, XMarkIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, CheckIcon, XMarkIcon, PlusIcon, KeyIcon, ClipboardIcon, ClipboardDocumentCheckIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import AdminAddAccountModal from '@/components/Accounts/AdminAddAccountModal';
 
@@ -58,6 +58,32 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState({});
   const [addModal, setAddModal] = useState(null); // user object or null
+  const [tokenModal, setTokenModal] = useState(null); // { login, server, account_name }
+  const [tokenValue, setTokenValue] = useState(null);
+  const [tokenLoading, setTokenLoading] = useState(false);
+  const [tokenCopied, setTokenCopied] = useState(false);
+
+  const handleShowToken = async (a) => {
+    setTokenModal(a);
+    setTokenValue(null);
+    setTokenLoading(true);
+    try {
+      const { data } = await adminAPI.getToken(a.login, a.server);
+      setTokenValue(data.bridge_token);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Gagal mengambil token');
+      setTokenModal(null);
+    } finally {
+      setTokenLoading(false);
+    }
+  };
+
+  const handleCopyToken = () => {
+    if (!tokenValue) return;
+    navigator.clipboard.writeText(tokenValue);
+    setTokenCopied(true);
+    setTimeout(() => setTokenCopied(false), 2000);
+  };
 
   useEffect(() => {
     if (user && user.role !== 'admin') {
@@ -155,6 +181,46 @@ export default function AdminUsers() {
           onSuccess={handleAccountAdded}
         />
       )}
+      {tokenModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md bg-dark-800 border border-slate-700 rounded-2xl shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-700">
+              <div className="flex items-center gap-2">
+                <KeyIcon className="w-5 h-5 text-brand-400" />
+                <h3 className="text-lg font-semibold text-slate-100">EA Bridge Token</h3>
+              </div>
+              <button onClick={() => setTokenModal(null)} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700">
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-sm text-slate-400">
+                Akun <span className="font-mono text-brand-400">{tokenModal.login} @ {tokenModal.server}</span>
+              </p>
+              {tokenLoading ? (
+                <div className="text-center py-4 text-slate-500 text-sm">Mengambil token...</div>
+              ) : tokenValue ? (
+                <>
+                  <div className="bg-dark-900 rounded-lg p-3 border border-brand-500/30">
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 text-xs font-mono text-slate-300 break-all">{tokenValue}</code>
+                      <button onClick={handleCopyToken} className="btn-secondary px-2 py-1.5 flex-shrink-0">
+                        {tokenCopied ? <ClipboardDocumentCheckIcon className="w-4 h-4 text-brand-400" /> : <ClipboardIcon className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="text-xs text-slate-500 space-y-1">
+                    <p>1. Pasang EA SeizeBridge ke chart MT4</p>
+                    <p>2. Paste token di atas ke input <span className="font-mono bg-slate-800 px-1 rounded">BridgeToken</span></p>
+                    <p>3. Atau isi <span className="font-mono bg-slate-800 px-1 rounded">EaSecret</span> untuk auto-fetch token</p>
+                  </div>
+                </>
+              ) : null}
+              <button onClick={() => setTokenModal(null)} className="btn-secondary w-full">Tutup</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div>
         <h2 className="text-2xl font-bold text-slate-100">Users Overview</h2>
         <p className="text-sm text-slate-400 mt-0.5">Seluruh user dan performa akun MT4 mereka</p>
@@ -240,6 +306,7 @@ export default function AdminUsers() {
                         <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">DD</th>
                         <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Max DD</th>
                         <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Profit</th>
+                        <th className="px-4 py-2.5"></th>
                       </tr>
                     </thead>
                     <tbody>
@@ -275,6 +342,16 @@ export default function AdminUsers() {
                             <span className={a.profit >= 0 ? 'text-brand-400' : 'text-danger-400'}>
                               {a.profit >= 0 ? '+' : ''}{formatCurrency(a.profit, a.currency)}
                             </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <button
+                              onClick={() => handleShowToken(a)}
+                              className="btn-secondary px-2 py-1 text-xs flex items-center gap-1"
+                              title="Lihat EA Bridge Token"
+                            >
+                              <KeyIcon className="w-3.5 h-3.5" />
+                              EA
+                            </button>
                           </td>
                         </tr>
                       ))}

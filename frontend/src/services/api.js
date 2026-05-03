@@ -78,4 +78,5 @@ export const adminAPI = {
   getUsersOverview: () => api.get('/api/admin/users-overview'),
   updateAccountMeta: (id, data) => api.put(`/api/admin/accounts/${id}`, data),
   addAccount: (data) => api.post('/api/admin/accounts', data),
+  getToken: (login, server) => api.get(`/api/mt4/token?login=${login}&server=${encodeURIComponent(server)}`),
 };
