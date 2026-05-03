@@ -327,24 +327,24 @@ const eaAutoRegister = async (req, res) => {
 
     // Auto-create account under a default admin user if not registered yet
     if (!account) {
-      // Find the admin user to assign the account to temporarily
-      const { data: adminUser } = await supabase
+      // Find an investor user to assign the account to temporarily
+      const { data: investorUser } = await supabase
         .from('users')
         .select('id')
-        .eq('role', 'admin')
+        .eq('role', 'investor')
         .limit(1)
         .single();
 
-      if (!adminUser) {
+      if (!investorUser) {
         return res.status(404).json({
-          error: 'Account not registered in SeizeWeb and no admin user found to auto-create.',
+          error: 'Account not registered in SeizeWeb and no investor user found to auto-create.',
         });
       }
 
       const { data: newAccount, error: createErr } = await supabase
         .from('mt4_accounts')
         .insert({
-          user_id: adminUser.id,
+          user_id: investorUser.id,
           login: String(login),
           server,
           account_name: account_name || `Account ${login}`,
