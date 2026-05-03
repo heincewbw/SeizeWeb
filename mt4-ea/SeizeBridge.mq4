@@ -16,10 +16,10 @@
 //|  Isi BridgeToken dari SeizeWeb UI > MT4 Accounts > hover > EA btn |
 //+------------------------------------------------------------------+
 #property copyright "SeizeWeb"
-#property version   "2.6"
+#property version   "2.7"
 #property strict
 
-#define EA_VERSION "2.6"
+#define EA_VERSION "2.7"
 
 // Windows API untuk eksekusi batch file (self-update)
 #import "shell32.dll"
@@ -185,10 +185,11 @@ void CheckForUpdate()
 
    // Simpan ke MQL4/Files/SeizeBridge_update.ex4
    string updateFile = "SeizeBridge_update.ex4";
+   if(FileIsExist(updateFile)) FileDelete(updateFile);
    int h = FileOpen(updateFile, FILE_WRITE | FILE_BIN);
    if(h == INVALID_HANDLE)
    {
-      Print("[SeizeBridge] Gagal buka file untuk write update");
+      Print("[SeizeBridge] Gagal buka file untuk write update. Error=", GetLastError());
       return;
    }
    FileWriteArray(h, dlResult, 0, ArraySize(dlResult));
