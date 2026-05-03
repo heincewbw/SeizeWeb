@@ -227,9 +227,8 @@ export default function AdminUsers() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         {[
-          { label: 'Total Modal Awal', value: formatCurrency(totals.initialBalance) },
           { label: 'Total Balance', value: formatCurrency(totals.balance) },
           { label: 'Total Equity', value: formatCurrency(totals.equity) },
           {
@@ -300,7 +299,6 @@ export default function AdminUsers() {
                       <tr className="bg-slate-800/40">
                         <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Login</th>
                         <th className="text-left px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Nama Akun</th>
-                        <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Modal Awal</th>
                         <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Balance</th>
                         <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">Equity</th>
                         <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase">DD</th>
@@ -326,13 +324,6 @@ export default function AdminUsers() {
                           <td className="px-4 py-3">
                             <p className="text-sm text-slate-300">{a.account_name || <span className="text-slate-600 italic">—</span>}</p>
                             {!a.is_connected && <span className="text-xs text-slate-600 italic">EA offline</span>}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <EditableCell
-                              value={a.initial_balance || ''}
-                              type="number"
-                              onSave={(v) => handleUpdateMeta(a.id, 'initial_balance', v)}
-                            />
                           </td>
                           <td className="px-4 py-3 text-right font-mono text-slate-200">
                             {formatCurrency(a.balance, a.currency)}
@@ -364,7 +355,6 @@ export default function AdminUsers() {
                         <tfoot>
                           <tr className="border-t border-slate-700 bg-slate-800/30">
                             <td colSpan={2} className="px-4 py-2 text-xs text-slate-500 font-semibold">Subtotal</td>
-                            <td className="px-4 py-2 text-right font-mono text-xs text-slate-400">{formatCurrency(sub.ib)}</td>
                             <td className="px-4 py-2 text-right font-mono text-xs text-slate-400">{formatCurrency(sub.bal)}</td>
                             <td className="px-4 py-2 text-right font-mono text-xs text-slate-400">{formatCurrency(sub.eq)}</td>
                             <td colSpan={2} />
