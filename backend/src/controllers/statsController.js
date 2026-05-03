@@ -8,7 +8,7 @@ const getSummary = async (req, res) => {
   try {
     let accountQuery = supabase
       .from('mt4_accounts')
-      .select('balance, equity, profit, free_margin, margin')
+      .select('balance, equity, profit, free_margin, margin, currency')
       .eq('user_id', req.user.id)
       .eq('is_connected', true);
 
@@ -17,10 +17,13 @@ const getSummary = async (req, res) => {
     const { data: accounts, error: accError } = await accountQuery;
     if (accError) throw accError;
 
-    const totalBalance = (accounts || []).reduce((sum, a) => sum + (a.balance || 0), 0);
-    const totalEquity = (accounts || []).reduce((sum, a) => sum + (a.equity || 0), 0);
-    const totalProfit = (accounts || []).reduce((sum, a) => sum + (a.profit || 0), 0);
-    const totalFreeMargin = (accounts || []).reduce((sum, a) => sum + (a.free_margin || 0), 0);
+    // USC accounts: divide by 100 to normalize to USD
+    const normalize = (a, field) => ((Number(a[field]) || 0) / (a.currency === 'USC' ? 100 : 1));
+
+    const totalBalance    = (accounts || []).reduce((sum, a) => sum + normalize(a, 'balance'), 0);
+    const totalEquity     = (accounts || []).reduce((sum, a) => sum + normalize(a, 'equity'), 0);
+    const totalProfit     = (accounts || []).reduce((sum, a) => sum + normalize(a, 'profit'), 0);
+    const totalFreeMargin = (accounts || []).reduce((sum, a) => sum + normalize(a, 'free_margin'), 0);
 
     // Trade stats from history
     let histQuery = supabase
@@ -90,7 +93,7 @@ const getEquityChart = async (req, res) => {
   try {
     let query = supabase
       .from('equity_snapshots')
-      .select('equity, balance, profit, created_at, mt4_account_id')
+      .select('equity, balance, profit, created_at, mt4_account_id, mt4_accounts(currency)')
       .eq('user_id', req.user.id)
       .gte('created_at', fromDate.toISOString())
       .order('created_at', { ascending: true });
@@ -104,21 +107,33 @@ const getEquityChart = async (req, res) => {
       return res.json({ chart: [] });
     }
 
-    // If single account selected, return raw snapshots
+    // Normalize USC values in snapshots
+    const normSnap = (snap) => {
+      const divisor = snap.mt4_accounts?.currency === 'USC' ? 100 : 1;
+      return {
+        ...snap,
+        equity:  (snap.equity  || 0) / divisor,
+        balance: (snap.balance || 0) / divisor,
+        profit:  (snap.profit  || 0) / divisor,
+      };
+    };
+
+    // If single account selected, return normalized snapshots
     if (account_id) {
-      return res.json({ chart: snapshots });
+      return res.json({ chart: snapshots.map(normSnap) });
     }
 
     // Multi-account: aggregate by hour bucket, sum equity+balance across accounts
     // Use the latest snapshot per account per bucket
-    const buckets = {}; // key: "YYYY-MM-DDTHH" → { [account_id]: { equity, balance, profit, created_at } }
+    const buckets = {}; // key: "YYYY-MM-DDTHH" → { [account_id]: normalized snap }
     for (const snap of snapshots) {
+      const normalized = normSnap(snap);
       const dt = new Date(snap.created_at);
       // Truncate to hour
       const bucketKey = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}T${String(dt.getHours()).padStart(2,'0')}`;
       if (!buckets[bucketKey]) buckets[bucketKey] = {};
       // Keep latest per account within the bucket
-      buckets[bucketKey][snap.mt4_account_id] = snap;
+      buckets[bucketKey][snap.mt4_account_id] = normalized;
     }
 
     // Build aggregated chart: sum all accounts in each bucket

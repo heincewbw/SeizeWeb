@@ -45,20 +45,23 @@ const getUsersOverview = async (req, res) => {
     for (const acc of accounts || []) {
       if (!accountsByUser[acc.user_id]) accountsByUser[acc.user_id] = [];
 
-      const balance = Number(acc.balance) || 0;
-      const equity = Number(acc.equity) || 0;
-      const initialBalance = Number(acc.initial_balance) || 0;
+      // USC (US Cents): backend stores raw cents from MT4, normalize to USD for all calculations
+      const divisor = acc.currency === 'USC' ? 100 : 1;
+      const balance = (Number(acc.balance) || 0) / divisor;
+      const equity  = (Number(acc.equity)  || 0) / divisor;
+      const initialBalance = Number(acc.initial_balance) || 0;  // always stored in USD
 
       // Current DD: how much equity dropped below balance (floating loss %)
       const dd = balance > 0 ? ((balance - equity) / balance) * 100 : 0;
 
       // Max DD: largest drop from initial_balance to lowest equity ever seen
-      const minEquity = minEquityMap[acc.id] !== undefined ? Number(minEquityMap[acc.id]) : equity;
+      const rawMinEquity = minEquityMap[acc.id] !== undefined ? Number(minEquityMap[acc.id]) : (Number(acc.equity) || 0);
+      const minEquity = rawMinEquity / divisor;
       const peak = initialBalance > 0 ? initialBalance : balance;
       const maxDd = peak > 0 ? ((peak - minEquity) / peak) * 100 : 0;
 
       // Profit from initial: equity - initial_balance
-      const profitFromInitial = initialBalance > 0 ? equity - initialBalance : Number(acc.profit) || 0;
+      const profitFromInitial = initialBalance > 0 ? equity - initialBalance : (Number(acc.profit) || 0) / divisor;
 
       accountsByUser[acc.user_id].push({
         id: acc.id,
@@ -70,7 +73,7 @@ const getUsersOverview = async (req, res) => {
         balance,
         equity,
         profit: profitFromInitial,
-        floating_profit: Number(acc.profit) || 0,
+        floating_profit: (Number(acc.profit) || 0) / divisor,
         dd: Math.max(0, dd),
         max_dd: Math.max(0, maxDd),
         is_connected: acc.is_connected,

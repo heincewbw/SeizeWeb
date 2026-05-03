@@ -7,14 +7,16 @@ import { format } from 'date-fns';
  */
 export const formatCurrency = (value, currency = 'USD') => {
   if (value === null || value === undefined || isNaN(value)) return '—';
-  // USC (US Cents) values are already divided by 100 server-side — display as USD
-  const displayCurrency = currency === 'USC' ? 'USD' : (currency || 'USD');
+  // USC (US Cents): backend stores raw cents from MT4, divide by 100 for display
+  const isUSC = currency === 'USC';
+  const displayValue = isUSC ? value / 100 : value;
+  const displayCurrency = isUSC ? 'USD' : (currency || 'USD');
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: displayCurrency,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value);
+  }).format(displayValue);
 };
 
 /**
