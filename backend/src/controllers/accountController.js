@@ -15,7 +15,21 @@ const getAccounts = async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch accounts' });
     }
 
-    return res.json({ accounts: accounts || [] });
+    // Normalize USC accounts: divide by 100 so frontend always receives USD values
+    const normalized = (accounts || []).map((a) => {
+      if (a.currency !== 'USC') return a;
+      const d = 100;
+      return {
+        ...a,
+        balance:     (a.balance     || 0) / d,
+        equity:      (a.equity      || 0) / d,
+        margin:      (a.margin      || 0) / d,
+        free_margin: (a.free_margin || 0) / d,
+        profit:      (a.profit      || 0) / d,
+      };
+    });
+
+    return res.json({ accounts: normalized });
   } catch (err) {
     logger.error('GetAccounts exception:', err);
     return res.status(500).json({ error: 'Internal server error' });
