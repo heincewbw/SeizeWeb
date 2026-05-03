@@ -58,8 +58,8 @@ const getUsersOverview = async (req, res) => {
       const peak = initialBalance > 0 ? initialBalance : balance;
       const maxDd = peak > 0 ? ((peak - minEquity) / peak) * 100 : 0;
 
-      // Profit from initial: balance - initial_balance
-      const profitFromInitial = initialBalance > 0 ? balance - initialBalance : Number(acc.profit) || 0;
+      // Profit from initial: equity - initial_balance
+      const profitFromInitial = initialBalance > 0 ? equity - initialBalance : Number(acc.profit) || 0;
 
       accountsByUser[acc.user_id].push({
         id: acc.id,
