@@ -130,21 +130,15 @@ const receiveMT4Push = async (req, res) => {
     const now = new Date().toISOString();
 
     // Update account balance/equity — also activate if first push
+    // NOTE: EA is responsible for dividing cents values (CentsAccount=true in EA input).
+    // Backend stores whatever the EA sends — do NOT divide here.
     if (account_info) {
-      // USC (US Cents) accounts: divide all monetary values by 100 to convert to USD
-      const divisor = account_info.currency === 'USC' ? 100 : 1;
-      const balance    = account_info.balance    / divisor;
-      const equity     = account_info.equity     / divisor;
-      const margin     = account_info.margin     / divisor;
-      const freeMargin = account_info.freeMargin / divisor;
-      const profit     = account_info.profit     / divisor;
-
       const updatePayload = {
-        balance,
-        equity,
-        margin,
-        free_margin: freeMargin,
-        profit,
+        balance:     account_info.balance,
+        equity:      account_info.equity,
+        margin:      account_info.margin,
+        free_margin: account_info.freeMargin,
+        profit:      account_info.profit,
         is_connected: true,
         last_synced: now,
       };
@@ -174,9 +168,9 @@ const receiveMT4Push = async (req, res) => {
         const { error: snapErr } = await supabase.from('equity_snapshots').insert({
           mt4_account_id: account.id,
           user_id: account.user_id,
-          balance,
-          equity,
-          profit,
+          balance: account_info.balance,
+          equity:  account_info.equity,
+          profit:  account_info.profit,
         });
         if (snapErr) logger.error('mt4Push insertSnapshot error:', snapErr);
       }
