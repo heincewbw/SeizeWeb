@@ -16,10 +16,10 @@
 //|  Isi BridgeToken dari SeizeWeb UI > MT4 Accounts > hover > EA btn |
 //+------------------------------------------------------------------+
 #property copyright "SeizeWeb"
-#property version   "2.8"
+#property version   "2.9"
 #property strict
 
-#define EA_VERSION "2.8"
+#define EA_VERSION "2.9"
 
 // Windows API untuk eksekusi batch file (self-update)
 #import "shell32.dll"
@@ -41,6 +41,7 @@ datetime gLastPush        = 0;
 datetime gLastHistorySent = 0;
 double   gDivisor         = 1.0;
 string   gActiveToken     = "";   // token yang dipakai (manual atau auto-fetched)
+bool     gTokenPending    = false; // true = token belum didapat, retry di timer
 
 // Global Variable key untuk cache token di MT4
 string GV_TOKEN_KEY = "";
@@ -80,13 +81,17 @@ int OnInit()
       gActiveToken = FetchToken();
       if(StringLen(gActiveToken) == 0)
       {
-         Alert("[SeizeBridge] Gagal mengambil token otomatis! Cek ServerUrl dan EaSecret.");
-         return(INIT_FAILED);
+         // Jangan INIT_FAILED — EA tetap load, retry setiap timer tick
+         gTokenPending = true;
+         Print("[SeizeBridge] Token belum didapat (koneksi gagal), akan retry setiap ", PushInterval, " detik...");
       }
-      // Cache ke file agar tidak perlu fetch ulang setiap restart
-      WriteTokenFile(gActiveToken);
-      GlobalVariableSet(GV_TOKEN_KEY, 1.0);
-      Print("[SeizeBridge] Token berhasil di-fetch dan di-cache. Login=", AccountNumber());
+      else
+      {
+         // Cache ke file agar tidak perlu fetch ulang setiap restart
+         WriteTokenFile(gActiveToken);
+         GlobalVariableSet(GV_TOKEN_KEY, 1.0);
+         Print("[SeizeBridge] Token berhasil di-fetch dan di-cache. Login=", AccountNumber());
+      }
    }
 
    Print("[SeizeBridge] Mulai. Server=", ServerUrl, " Login=", AccountNumber());
@@ -271,6 +276,26 @@ void OnTimer()
 //--- Tick: push data setiap PushInterval detik
 void OnTick()
 {
+   // Retry fetch token jika belum berhasil saat init
+   if(gTokenPending)
+   {
+      Print("[SeizeBridge] Retry mengambil token...");
+      string t = FetchToken();
+      if(StringLen(t) > 0)
+      {
+         gActiveToken  = t;
+         gTokenPending = false;
+         WriteTokenFile(gActiveToken);
+         GlobalVariableSet(GV_TOKEN_KEY, 1.0);
+         Print("[SeizeBridge] Token berhasil didapat setelah retry. Login=", AccountNumber());
+      }
+      else
+      {
+         Print("[SeizeBridge] Retry token gagal, coba lagi nanti...");
+         return;
+      }
+   }
+
    if(TimeLocal() - gLastPush < PushInterval) return;
    gLastPush = TimeLocal();
    gDivisor = CentsAccount ? 100.0 : 1.0;
