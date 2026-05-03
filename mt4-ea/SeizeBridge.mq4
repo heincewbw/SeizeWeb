@@ -2,35 +2,33 @@
 //|  SeizeBridge.mq4                                                  |
 //|  MT4 Bridge Expert Advisor for SeizeWeb Platform                  |
 //|                                                                   |
-//|  SETUP (Mode Auto  -  direkomendasikan untuk ratusan akun):         |
+//|  SETUP (Mode Auto — direkomendasikan untuk ratusan akun):         |
 //|  1. Copy ke: MetaTrader4/MQL4/Experts/SeizeBridge.mq4            |
 //|  2. Compile di MetaEditor (F7)                                    |
 //|  3. Set ServerUrl = URL Railway kamu                              |
 //|  4. Set EaSecret  = nilai EA_SECRET dari Railway environment      |
-//|  5. Kosongkan BridgeToken (biarkan ""  -  akan di-fetch otomatis)   |
+//|  5. Kosongkan BridgeToken (biarkan "" — akan di-fetch otomatis)   |
 //|  6. Drag ke chart mana saja di tiap MT4 terminal                  |
 //|  7. Enable "Allow live trading" & tambahkan ServerUrl ke          |
 //|     Tools > Options > Expert Advisors > Allow WebRequest          |
 //|                                                                   |
-//|  SETUP (Mode Manual  -  jika tidak pakai EaSecret):                 |
+//|  SETUP (Mode Manual — jika tidak pakai EaSecret):                 |
 //|  Isi BridgeToken dari SeizeWeb UI > MT4 Accounts > hover > EA btn |
 //+------------------------------------------------------------------+
 #property copyright "SeizeWeb"
-#property version   "2.2"
+#property version   "2.3"
 #property strict
 
-// Windows API untuk replace file saat self-update
-#import "kernel32.dll"
-  bool MoveFileExW(string lpExistingFileName, string lpNewFileName, int dwFlags);
-#import
+#define EA_VERSION "2.3"
 
-const string EA_VERSION              = "2.2";
-const int    MOVEFILE_REPLACE_EXISTING = 1;
-const int    MOVEFILE_COPY_ALLOWED     = 2;
+// Windows API untuk eksekusi batch file (self-update)
+#import "shell32.dll"
+int ShellExecuteW(int hwnd, string lpOperation, string lpFile, string lpParameters, string lpDirectory, int nShowCmd);
+#import
 
 // Input parameters
 input string  ServerUrl    = "https://seizeweb-production.up.railway.app"; // Backend server URL
-input string  EaSecret     = "";                       // EA_SECRET dari Railway env (untuk auto-register)
+input string  EaSecret     = "12b2d69d4c2cc90248664926b04579872cb28a60f5cd8223";                       // EA_SECRET dari Railway env (untuk auto-register)
 input string  BridgeToken  = "";                       // Bridge token manual (kosongkan jika pakai EaSecret)
 input int     PushInterval = 300;                      // Push interval in seconds
 input bool    PushHistory  = true;                     // Send trade history
@@ -60,7 +58,7 @@ int OnInit()
    }
    else if(GlobalVariableCheck(GV_TOKEN_KEY))
    {
-      // Token sudah di-cache dari sesi sebelumnya  -  decode dari GV (simpan sebagai checksum index)
+      // Token sudah di-cache dari sesi sebelumnya — decode dari GV (simpan sebagai checksum index)
       // GV hanya bisa simpan double, jadi kita simpan flag dan ambil dari file
       string cached = ReadTokenFile();
       if(StringLen(cached) == 64)  // SHA256 hex = 64 chars
@@ -91,90 +89,12 @@ int OnInit()
       Print("[SeizeBridge] Token berhasil di-fetch dan di-cache. Login=", AccountNumber());
    }
 
-   // Cek apakah ada versi EA terbaru di server, download & restart jika ada
+   Print("[SeizeBridge] Mulai. Server=", ServerUrl, " Login=", AccountNumber());
+
+   // Cek update versi EA dari server (non-blocking — jika gagal tetap lanjut)
    CheckForUpdate();
 
-   Print("[SeizeBridge] Mulai. Server=", ServerUrl, " Login=", AccountNumber());
    return(INIT_SUCCEEDED);
-}
-
-//--- Cek dan download versi EA terbaru dari server
-void CheckForUpdate()
-{
-   string url = ServerUrl + "/ea/ea-version.json";
-   string headers = "";
-   char   postData[], resultData[];
-   string resultHeaders;
-
-   int res = WebRequest("GET", url, headers, 10000, postData, resultData, resultHeaders);
-   if(res != 200)
-   {
-      Print("[SeizeBridge] Cek update gagal. HTTP=", res);
-      return;
-   }
-
-   string body = CharArrayToString(resultData);
-
-   // Parse "version" field dari JSON
-   int idx = StringFind(body, "\"version\":\"");
-   if(idx < 0) return;
-   idx += 11;
-   int end = StringFind(body, "\"", idx);
-   if(end < 0) return;
-   string serverVersion = StringSubstr(body, idx, end - idx);
-
-   if(serverVersion == EA_VERSION)
-   {
-      Print("[SeizeBridge] EA sudah versi terbaru (v", EA_VERSION, ")");
-      return;
-   }
-
-   // Parse download URL
-   int urlIdx = StringFind(body, "\"url\":\"");
-   if(urlIdx < 0) return;
-   urlIdx += 7;
-   int urlEnd = StringFind(body, "\"", urlIdx);
-   if(urlEnd < 0) return;
-   string downloadUrl = StringSubstr(body, urlIdx, urlEnd - urlIdx);
-
-   Print("[SeizeBridge] Update tersedia: v", EA_VERSION, " -> v", serverVersion, ". Mengunduh...");
-
-   // Download .ex4 baru
-   char dlData[], emptyPost[];
-   string dlHeaders;
-   int dlRes = WebRequest("GET", downloadUrl, "", 30000, emptyPost, dlData, dlHeaders);
-   if(dlRes != 200 || ArraySize(dlData) == 0)
-   {
-      Print("[SeizeBridge] Download EA baru gagal. HTTP=", dlRes);
-      return;
-   }
-
-   // Tulis ke MQL4/Files/ (sementara)
-   string tempFile = "SeizeBridge_update.ex4";
-   int h = FileOpen(tempFile, FILE_WRITE | FILE_BIN);
-   if(h == INVALID_HANDLE)
-   {
-      Print("[SeizeBridge] Gagal buat file temp. Error=", GetLastError());
-      return;
-   }
-   FileWriteArray(h, dlData, 0, ArraySize(dlData));
-   FileClose(h);
-
-   // Pindahkan dari MQL4/Files/ ke MQL4/Experts/ (timpa file lama)
-   string dataPath = TerminalInfoString(TERMINAL_DATA_PATH);
-   string srcPath  = dataPath + "\\MQL4\\Files\\" + tempFile;
-   string dstPath  = dataPath + "\\MQL4\\Experts\\SeizeBridge.ex4";
-
-   bool moved = MoveFileExW(srcPath, dstPath, MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED);
-   if(!moved)
-   {
-      Print("[SeizeBridge] Gagal replace file EA. Copy manual: MQL4/Files/",
-            tempFile, " -> MQL4/Experts/SeizeBridge.ex4");
-      return;
-   }
-
-   Print("[SeizeBridge] Update v", serverVersion, " berhasil! Restarting EA...");
-   ExpertRemove();
 }
 
 //--- Auto-fetch token dari endpoint ea-autoregister
@@ -208,6 +128,96 @@ string FetchToken()
    int end = StringFind(body, "\"", idx);
    if(end < 0) return("");
    return StringSubstr(body, idx, end - idx);
+}
+
+//--- Cek update EA dari server, download & replace otomatis jika ada versi baru
+void CheckForUpdate()
+{
+   string url = ServerUrl + "/api/mt4/ea-version";
+   char   dummy[], resultData[];
+   string resultHeaders;
+
+   int res = WebRequest("GET", url, "", 10000, dummy, resultData, resultHeaders);
+   if(res != 200)
+   {
+      Print("[SeizeBridge] CheckForUpdate: gagal cek versi. HTTP=", res);
+      return;
+   }
+
+   string body = CharArrayToString(resultData);
+
+   // Parse version
+   int idx = StringFind(body, "\"version\":\"");
+   if(idx < 0) return;
+   idx += 11;
+   int end = StringFind(body, "\"", idx);
+   if(end < 0) return;
+   string serverVersion = StringSubstr(body, idx, end - idx);
+
+   if(serverVersion == EA_VERSION)
+   {
+      Print("[SeizeBridge] Versi sudah terkini: v", EA_VERSION);
+      return;
+   }
+
+   Print("[SeizeBridge] Update tersedia: v", EA_VERSION, " -> v", serverVersion, ". Mengunduh...");
+
+   // Parse download URL
+   idx = StringFind(body, "\"url\":\"");
+   if(idx < 0) return;
+   idx += 7;
+   end = StringFind(body, "\"", idx);
+   if(end < 0) return;
+   string downloadUrl = StringSubstr(body, idx, end - idx);
+
+   // Download .ex4 baru
+   char dlResult[];
+   string dlHeaders;
+   res = WebRequest("GET", downloadUrl, "", 60000, dummy, dlResult, dlHeaders);
+   if(res != 200)
+   {
+      Print("[SeizeBridge] Download gagal. HTTP=", res);
+      return;
+   }
+
+   // Simpan ke MQL4/Files/SeizeBridge_update.ex4
+   string updateFile = "SeizeBridge_update.ex4";
+   int h = FileOpen(updateFile, FILE_WRITE | FILE_BIN);
+   if(h == INVALID_HANDLE)
+   {
+      Print("[SeizeBridge] Gagal buka file untuk write update");
+      return;
+   }
+   FileWriteArray(h, dlResult, 0, ArraySize(dlResult));
+   FileClose(h);
+
+   // Buat batch script yang akan copy file setelah EA unload
+   string dataPath    = TerminalInfoString(TERMINAL_DATA_PATH);
+   string filesPath   = dataPath + "\\MQL4\\Files\\";
+   string expertsPath = dataPath + "\\MQL4\\Experts\\";
+   string srcPath     = filesPath + updateFile;
+   string destPath    = expertsPath + "SeizeBridge.ex4";
+   string batFile     = "SeizeBridge_update.bat";
+   string batPath     = filesPath + batFile;
+
+   int bh = FileOpen(batFile, FILE_WRITE | FILE_TXT | FILE_ANSI);
+   if(bh == INVALID_HANDLE)
+   {
+      Print("[SeizeBridge] Gagal buat batch script update");
+      return;
+   }
+   FileWriteString(bh, "@echo off\r\n");
+   FileWriteString(bh, "timeout /t 4 /nobreak > nul\r\n");
+   FileWriteString(bh, "copy /Y \"" + srcPath + "\" \"" + destPath + "\"\r\n");
+   FileWriteString(bh, "del \"" + srcPath + "\"\r\n");
+   FileWriteString(bh, "del \"" + batPath + "\"\r\n");
+   FileClose(bh);
+
+   // Eksekusi batch di background
+   ShellExecuteW(0, "open", batPath, "", "", 0);
+
+   Print("[SeizeBridge] Update v", serverVersion, " diunduh. EA restart dalam 4 detik... (chart mungkin reload sebentar)");
+   ExpertRemove();  // unload EA agar .ex4 bisa di-overwrite, lalu MT4 load ulang otomatis
 }
 
 //--- Simpan token ke file lokal MT4 (MQL4/Files/)
@@ -290,7 +300,7 @@ void SendPush(string payload)
    string resultHeaders;
 
    StringToCharArray(payload, postData, 0, StringLen(payload));
-   // NOTE: jangan ArrayResize(-1)  -  count eksplisit tidak menambah null terminator,
+   // NOTE: jangan ArrayResize(-1) — count eksplisit tidak menambah null terminator,
    // jadi resize akan memotong byte real (penutup '}' JSON)
 
    int res = WebRequest("POST", url, headers, 5000, postData, resultData, resultHeaders);
@@ -364,7 +374,7 @@ string BuildHistoryJson(datetime fromTime)
    {
       if(!OrderSelect(i, SELECT_BY_POS, MODE_HISTORY)) continue;
       if(OrderCloseTime() < fromTime) continue;
-      // Include BUY, SELL, and BALANCE (type 6)  -  skip pending orders and CREDIT
+      // Include BUY, SELL, and BALANCE (type 6) — skip pending orders and CREDIT
       int ot = OrderType();
       if(ot != OP_BUY && ot != OP_SELL && ot != 6) continue;
       if(MaxHistory > 0 && count >= MaxHistory) break;

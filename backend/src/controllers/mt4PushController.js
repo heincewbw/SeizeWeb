@@ -1,6 +1,11 @@
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const supabase = require('../config/supabase');
 const logger = require('../config/logger');
+
+// Versi EA yang sedang aktif — bump setiap kali update SeizeBridge.mq4
+const EA_VERSION = '2.3';
 
 // In-memory cache for open positions (keyed by "login:server")
 const positionCache = new Map();
@@ -333,4 +338,28 @@ const eaAutoRegister = async (req, res) => {
   }
 };
 
-module.exports = { getBridgeToken, receiveMT4Push, eaAutoRegister, positionCache, generateBridgeToken };
+/**
+ * GET /api/mt4/ea-version  (public — no auth needed)
+ * Returns current EA version and download URL.
+ */
+const getEaVersion = (req, res) => {
+  const baseUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+  res.json({
+    version: EA_VERSION,
+    url: `${baseUrl}/api/mt4/ea-download`,
+  });
+};
+
+/**
+ * GET /api/mt4/ea-download  (public — no auth needed)
+ * Serves the latest SeizeBridge.ex4 binary.
+ */
+const getEaDownload = (req, res) => {
+  const filePath = path.join(__dirname, '../../public/ea/SeizeBridge.ex4');
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'EA file not found on server' });
+  }
+  res.download(filePath, 'SeizeBridge.ex4');
+};
+
+module.exports = { getBridgeToken, receiveMT4Push, eaAutoRegister, getEaVersion, getEaDownload, positionCache, generateBridgeToken };
