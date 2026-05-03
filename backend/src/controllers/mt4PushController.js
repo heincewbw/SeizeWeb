@@ -313,7 +313,7 @@ const eaAutoRegister = async (req, res) => {
 
   try {
     // Find an mt4_accounts row for this login+server (any user)
-    const { data: account } = await supabase
+    let { data: account } = await supabase
       .from('mt4_accounts')
       .select('id, user_id')
       .eq('login', String(login))
@@ -321,10 +321,49 @@ const eaAutoRegister = async (req, res) => {
       .limit(1)
       .single();
 
+    // Auto-create account under a default admin user if not registered yet
     if (!account) {
-      return res.status(404).json({
-        error: 'Account not registered in SeizeWeb. Ask the investor to register the account first.',
-      });
+      // Find the admin user to assign the account to temporarily
+      const { data: adminUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('role', 'admin')
+        .limit(1)
+        .single();
+
+      if (!adminUser) {
+        return res.status(404).json({
+          error: 'Account not registered in SeizeWeb and no admin user found to auto-create.',
+        });
+      }
+
+      const { data: newAccount, error: createErr } = await supabase
+        .from('mt4_accounts')
+        .insert({
+          user_id: adminUser.id,
+          login: String(login),
+          server,
+          account_name: account_name || `Account ${login}`,
+          currency: 'USD',
+          leverage: 100,
+          initial_balance: 0,
+          balance: 0,
+          equity: 0,
+          margin: 0,
+          free_margin: 0,
+          profit: 0,
+          is_connected: false,
+        })
+        .select('id, user_id')
+        .single();
+
+      if (createErr) {
+        logger.error('eaAutoRegister auto-create error:', createErr);
+        return res.status(500).json({ error: 'Failed to auto-create account' });
+      }
+
+      account = newAccount;
+      logger.info(`EA auto-register: auto-created account login=${login} server=${server} under admin user`);
     }
 
     const token = generateBridgeToken(login, server);
