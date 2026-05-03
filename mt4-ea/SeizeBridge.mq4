@@ -1,18 +1,18 @@
-﻿//+------------------------------------------------------------------+
+//+------------------------------------------------------------------+
 //|  SeizeBridge.mq4                                                  |
 //|  MT4 Bridge Expert Advisor for SeizeWeb Platform                  |
 //|                                                                   |
-//|  SETUP (Mode Auto — direkomendasikan untuk ratusan akun):         |
+//|  SETUP (Mode Auto  -  direkomendasikan untuk ratusan akun):         |
 //|  1. Copy ke: MetaTrader4/MQL4/Experts/SeizeBridge.mq4            |
 //|  2. Compile di MetaEditor (F7)                                    |
 //|  3. Set ServerUrl = URL Railway kamu                              |
 //|  4. Set EaSecret  = nilai EA_SECRET dari Railway environment      |
-//|  5. Kosongkan BridgeToken (biarkan "" — akan di-fetch otomatis)   |
+//|  5. Kosongkan BridgeToken (biarkan ""  -  akan di-fetch otomatis)   |
 //|  6. Drag ke chart mana saja di tiap MT4 terminal                  |
 //|  7. Enable "Allow live trading" & tambahkan ServerUrl ke          |
 //|     Tools > Options > Expert Advisors > Allow WebRequest          |
 //|                                                                   |
-//|  SETUP (Mode Manual — jika tidak pakai EaSecret):                 |
+//|  SETUP (Mode Manual  -  jika tidak pakai EaSecret):                 |
 //|  Isi BridgeToken dari SeizeWeb UI > MT4 Accounts > hover > EA btn |
 //+------------------------------------------------------------------+
 #property copyright "SeizeWeb"
@@ -60,7 +60,7 @@ int OnInit()
    }
    else if(GlobalVariableCheck(GV_TOKEN_KEY))
    {
-      // Token sudah di-cache dari sesi sebelumnya — decode dari GV (simpan sebagai checksum index)
+      // Token sudah di-cache dari sesi sebelumnya  -  decode dari GV (simpan sebagai checksum index)
       // GV hanya bisa simpan double, jadi kita simpan flag dan ambil dari file
       string cached = ReadTokenFile();
       if(StringLen(cached) == 64)  // SHA256 hex = 64 chars
@@ -290,7 +290,7 @@ void SendPush(string payload)
    string resultHeaders;
 
    StringToCharArray(payload, postData, 0, StringLen(payload));
-   // NOTE: jangan ArrayResize(-1) — count eksplisit tidak menambah null terminator,
+   // NOTE: jangan ArrayResize(-1)  -  count eksplisit tidak menambah null terminator,
    // jadi resize akan memotong byte real (penutup '}' JSON)
 
    int res = WebRequest("POST", url, headers, 5000, postData, resultData, resultHeaders);
@@ -364,7 +364,7 @@ string BuildHistoryJson(datetime fromTime)
    {
       if(!OrderSelect(i, SELECT_BY_POS, MODE_HISTORY)) continue;
       if(OrderCloseTime() < fromTime) continue;
-      // Include BUY, SELL, and BALANCE (type 6) — skip pending orders and CREDIT
+      // Include BUY, SELL, and BALANCE (type 6)  -  skip pending orders and CREDIT
       int ot = OrderType();
       if(ot != OP_BUY && ot != OP_SELL && ot != 6) continue;
       if(MaxHistory > 0 && count >= MaxHistory) break;
