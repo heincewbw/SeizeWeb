@@ -194,4 +194,70 @@ const getSymbolBreakdown = async (req, res) => {
   }
 };
 
-module.exports = { getSummary, getEquityChart, getSymbolBreakdown };
+// GET /api/stats/monthly-gain
+const getMonthlyGain = async (req, res) => {
+  const { account_id } = req.query;
+
+  try {
+    let query = supabase
+      .from('equity_snapshots')
+      .select('balance, equity, created_at, mt4_account_id, mt4_accounts(currency)')
+      .eq('user_id', req.user.id)
+      .order('created_at', { ascending: true });
+
+    if (account_id) query = query.eq('mt4_account_id', account_id);
+
+    const { data: snapshots, error } = await query;
+    if (error) throw error;
+
+    if (!snapshots || snapshots.length === 0) {
+      return res.json({ monthly: [] });
+    }
+
+    // Normalize USC values
+    const normSnap = (snap) => {
+      const divisor = snap.mt4_accounts?.currency === 'USC' ? 100 : 1;
+      return {
+        created_at: snap.created_at,
+        balance: (snap.balance || 0) / divisor,
+        equity: (snap.equity || 0) / divisor,
+        mt4_account_id: snap.mt4_account_id,
+      };
+    };
+
+    const normalized = snapshots.map(normSnap);
+
+    // Group by year-month
+    const monthMap = {};
+    for (const snap of normalized) {
+      const d = new Date(snap.created_at);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!monthMap[key]) monthMap[key] = [];
+      monthMap[key].push(snap);
+    }
+
+    const monthly = Object.entries(monthMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, snaps]) => {
+        const first = snaps[0].balance;
+        const last = snaps[snaps.length - 1].balance;
+        const gainPct = first > 0 ? ((last - first) / first) * 100 : 0;
+        const [year, month] = key.split('-');
+        return {
+          key,
+          year: parseInt(year),
+          month: parseInt(month),
+          gainPct: parseFloat(gainPct.toFixed(2)),
+          startBalance: parseFloat(first.toFixed(2)),
+          endBalance: parseFloat(last.toFixed(2)),
+        };
+      });
+
+    return res.json({ monthly });
+  } catch (err) {
+    logger.error('GetMonthlyGain exception:', err);
+    return res.status(500).json({ error: 'Failed to fetch monthly gain' });
+  }
+};
+
+module.exports = { getSummary, getEquityChart, getSymbolBreakdown, getMonthlyGain };

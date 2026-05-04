@@ -65,6 +65,8 @@ export const statsAPI = {
   getEquityChart: (params) => api.get('/api/stats/equity-chart', { params }),
   getSymbolBreakdown: (accountId) =>
     api.get('/api/stats/symbol-breakdown', { params: accountId ? { account_id: accountId } : {} }),
+  getMonthlyGain: (accountId) =>
+    api.get('/api/stats/monthly-gain', { params: accountId ? { account_id: accountId } : {} }),
 };
 
 // ─── Withdrawals ──────────────────────────────────────────────────────────

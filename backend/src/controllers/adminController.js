@@ -24,12 +24,20 @@ const getUsersOverview = async (req, res) => {
     if (accErr) throw accErr;
 
     // Fetch min equity per account from equity_snapshots (for Max DD calculation)
-    const { data: minEquities, error: snapErr } = await supabase
+    const { data: minEquities, error: snapMinErr } = await supabase
       .from('equity_snapshots')
       .select('mt4_account_id, equity')
       .order('equity', { ascending: true });
 
-    if (snapErr) logger.warn('Admin getUsersOverview: equity_snapshots query failed:', snapErr);
+    if (snapMinErr) logger.warn('Admin getUsersOverview: equity_snapshots min query failed:', snapMinErr);
+
+    // Fetch max equity per account (peak equity ever reached)
+    const { data: maxEquities, error: snapMaxErr } = await supabase
+      .from('equity_snapshots')
+      .select('mt4_account_id, equity')
+      .order('equity', { ascending: false });
+
+    if (snapMaxErr) logger.warn('Admin getUsersOverview: equity_snapshots max query failed:', snapMaxErr);
 
     // Build min equity map per account
     const minEquityMap = {};
@@ -37,6 +45,15 @@ const getUsersOverview = async (req, res) => {
       const aid = snap.mt4_account_id;
       if (minEquityMap[aid] === undefined || snap.equity < minEquityMap[aid]) {
         minEquityMap[aid] = snap.equity;
+      }
+    }
+
+    // Build max equity map per account
+    const maxEquityMap = {};
+    for (const snap of maxEquities || []) {
+      const aid = snap.mt4_account_id;
+      if (maxEquityMap[aid] === undefined || snap.equity > maxEquityMap[aid]) {
+        maxEquityMap[aid] = snap.equity;
       }
     }
 
@@ -54,10 +71,17 @@ const getUsersOverview = async (req, res) => {
       // Current DD: how much equity dropped below balance (floating loss %)
       const dd = balance > 0 ? ((balance - equity) / balance) * 100 : 0;
 
-      // Max DD: largest drop from initial_balance to lowest equity ever seen
+      // Max DD: (peakEquity - minEquity) / peakEquity
+      // Peak = highest of: initialBalance, max snapshot equity, current balance
       const rawMinEquity = minEquityMap[acc.id] !== undefined ? Number(minEquityMap[acc.id]) : (Number(acc.equity) || 0);
+      const rawMaxEquity = maxEquityMap[acc.id] !== undefined ? Number(maxEquityMap[acc.id]) : (Number(acc.equity) || 0);
       const minEquity = rawMinEquity / divisor;
-      const peak = initialBalance > 0 ? initialBalance : balance;
+      const maxSnapshotEquity = rawMaxEquity / divisor;
+      const peak = Math.max(
+        initialBalance > 0 ? initialBalance : 0,
+        maxSnapshotEquity,
+        balance,
+      );
       const maxDd = peak > 0 ? ((peak - minEquity) / peak) * 100 : 0;
 
       // Profit from initial: equity - initial_balance

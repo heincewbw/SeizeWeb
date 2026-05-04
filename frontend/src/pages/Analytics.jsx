@@ -1,14 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { statsAPI, accountsAPI } from '@/services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '@/utils/format';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LabelList,
 } from 'recharts';
 import { format } from 'date-fns';
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316', '#84cc16'];
+
+// Distinct pastel-ish colors matching the screenshot
+const MONTH_COLORS = [
+  '#a78bfa', // Jan - purple
+  '#f87171', // Feb - rose
+  '#2dd4bf', // Mar - teal
+  '#fb923c', // Apr - orange
+  '#fbbf24', // May - amber
+  '#34d399', // Jun - emerald
+  '#60a5fa', // Jul - blue
+  '#c084fc', // Aug - violet
+  '#f472b6', // Sep - pink
+  '#a3e635', // Oct - lime
+  '#38bdf8', // Nov - sky
+  '#4ade80', // Dec - green
+];
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 const PERIODS = [
   { value: '7d', label: '7D' },
   { value: '30d', label: '30D' },
@@ -16,13 +35,27 @@ const PERIODS = [
   { value: '365d', label: '1Y' },
 ];
 
+const MonthlyGainTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-dark-800 border border-slate-700 rounded-lg p-3 shadow-xl text-xs">
+      <p className="text-slate-400 mb-1 font-medium">{label}</p>
+      <p className="font-semibold" style={{ color: payload[0]?.fill }}>
+        Gain: {payload[0]?.value?.toFixed(2)}%
+      </p>
+    </div>
+  );
+};
+
 export default function Analytics() {
   const [accounts, setAccounts] = useState([]);
   const [selectedAccount, setSelectedAccount] = useState('');
   const [period, setPeriod] = useState('30d');
   const [equityChart, setEquityChart] = useState([]);
   const [breakdown, setBreakdown] = useState([]);
+  const [monthlyGain, setMonthlyGain] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [monthlyLoading, setMonthlyLoading] = useState(true);
 
   useEffect(() => {
     accountsAPI.getAll().then(({ data }) => setAccounts(data.accounts));
@@ -30,6 +63,7 @@ export default function Analytics() {
 
   useEffect(() => {
     loadAnalytics();
+    loadMonthly();
   }, [selectedAccount, period]);
 
   const loadAnalytics = async () => {
@@ -48,6 +82,18 @@ export default function Analytics() {
     }
   };
 
+  const loadMonthly = async () => {
+    setMonthlyLoading(true);
+    try {
+      const res = await statsAPI.getMonthlyGain(selectedAccount || undefined);
+      setMonthlyGain(res.data.monthly);
+    } catch {
+      // non-critical, ignore
+    } finally {
+      setMonthlyLoading(false);
+    }
+  };
+
   const equityData = equityChart.map((d) => ({
     date: format(new Date(d.created_at), 'MMM dd'),
     equity: parseFloat(d.equity?.toFixed(2)),
@@ -59,6 +105,26 @@ export default function Analytics() {
     profit: parseFloat(d.profit?.toFixed(2)),
     trades: d.count,
   }));
+
+  // Derived monthly data
+  const availableYears = useMemo(() => {
+    const years = [...new Set((monthlyGain || []).map((m) => m.year))].sort();
+    return years;
+  }, [monthlyGain]);
+
+  const [selectedYear, setSelectedYear] = useState(null);
+
+  const activeYear = selectedYear ?? availableYears[availableYears.length - 1] ?? new Date().getFullYear();
+
+  const monthlyChartData = useMemo(() => {
+    return (monthlyGain || [])
+      .filter((m) => m.year === activeYear)
+      .map((m) => ({
+        label: `${MONTH_NAMES[m.month - 1]} ${m.year}`,
+        gainPct: m.gainPct,
+        monthIndex: m.month - 1,
+      }));
+  }, [monthlyGain, activeYear]);
 
   return (
     <div className="space-y-6">
@@ -204,6 +270,78 @@ export default function Analytics() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Monthly Analytics */}
+      <div className="card">
+        {/* Header row */}
+        <div className="flex items-center gap-4 mb-5 flex-wrap">
+          <h3 className="text-base font-bold text-slate-100">Monthly Analytics</h3>
+          <div className="flex gap-1">
+            {availableYears.map((yr) => (
+              <button
+                key={yr}
+                onClick={() => setSelectedYear(yr)}
+                className={`px-3 py-1 rounded-md text-sm font-semibold transition-colors ${
+                  activeYear === yr
+                    ? 'bg-slate-600 text-slate-100'
+                    : 'text-slate-400 hover:text-slate-100 hover:bg-slate-800'
+                }`}
+              >
+                {yr}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <p className="text-center text-xs font-semibold text-slate-400 mb-4 uppercase tracking-wider">
+          Monthly Gain (Change)
+        </p>
+
+        {monthlyLoading ? (
+          <div className="h-64 bg-slate-800 rounded-lg animate-pulse" />
+        ) : monthlyChartData.length === 0 ? (
+          <div className="h-64 flex items-center justify-center text-slate-500 text-sm">
+            No monthly data available
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={monthlyChartData} margin={{ top: 24, right: 20, left: 0, bottom: 5 }} barCategoryGap="35%">
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+              <XAxis
+                dataKey="label"
+                stroke="#475569"
+                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                stroke="#475569"
+                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                tickLine={false}
+                axisLine={false}
+                tickFormatter={(v) => `${v}%`}
+                width={42}
+              />
+              <Tooltip content={<MonthlyGainTooltip />} cursor={{ fill: 'rgba(148,163,184,0.05)' }} />
+              <Bar dataKey="gainPct" name="Monthly Gain" radius={[3, 3, 0, 0]}>
+                <LabelList
+                  dataKey="gainPct"
+                  position="top"
+                  formatter={(v) => `${v}%`}
+                  style={{ fontSize: '11px', fontWeight: 600, fill: '#cbd5e1' }}
+                />
+                {monthlyChartData.map((entry, i) => (
+                  <Cell
+                    key={`cell-${i}`}
+                    fill={entry.gainPct >= 0 ? MONTH_COLORS[entry.monthIndex % MONTH_COLORS.length] : '#ef4444'}
+                    fillOpacity={0.85}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   );
