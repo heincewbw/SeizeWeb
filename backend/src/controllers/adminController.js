@@ -286,15 +286,17 @@ const reassignAccount = async (req, res) => {
 
 // POST /api/admin/test-offline-alert
 // Sends a test offline alert email to all admin users immediately
-const { sendMail } = require('../services/emailService');
+const { sendMailOrThrow } = require('../services/emailService');
 
 const testOfflineAlert = async (req, res) => {
   try {
-    const { data: admins } = await supabase
+    const { data: admins, error: adminErr } = await supabase
       .from('users')
       .select('email')
       .eq('role', 'admin')
       .eq('is_active', true);
+
+    if (adminErr) throw new Error(`Supabase error: ${adminErr.message}`);
 
     if (!admins || admins.length === 0) {
       return res.status(404).json({ error: 'Tidak ada admin user yang aktif' });
@@ -338,15 +340,15 @@ const testOfflineAlert = async (req, res) => {
     const subject = '[SeizeWeb] TEST — MT4 Account Offline Alert';
     const sent = [];
     for (const admin of admins) {
-      await sendMail(admin.email, subject, html);
+      await sendMailOrThrow(admin.email, subject, html);
       sent.push(admin.email);
     }
 
     logger.info(`testOfflineAlert: test email sent to ${sent.join(', ')}`);
     return res.json({ success: true, sentTo: sent });
   } catch (err) {
-    logger.error('testOfflineAlert error:', err);
-    return res.status(500).json({ error: 'Gagal mengirim test email' });
+    logger.error('testOfflineAlert error:', err.message);
+    return res.status(500).json({ error: err.message });
   }
 };
 

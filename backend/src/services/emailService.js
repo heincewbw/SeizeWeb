@@ -55,4 +55,28 @@ const sendMail = async (to, subject, html) => {
   }
 };
 
-module.exports = { sendMail };
+/**
+ * Send an email — throws on error (for test/diagnostic use).
+ */
+const sendMailOrThrow = async (to, subject, html) => {
+  if (!nodemailer) throw new Error('nodemailer module not installed');
+  const { SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_PORT } = process.env;
+  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) throw new Error(`SMTP not configured (SMTP_HOST=${SMTP_HOST}, SMTP_USER=${SMTP_USER})`);
+
+  const t = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: parseInt(SMTP_PORT) || 587,
+    secure: parseInt(SMTP_PORT) === 465,
+    auth: { user: SMTP_USER, pass: SMTP_PASS },
+  });
+
+  const info = await t.sendMail({
+    from: `"SeizeWeb Alert" <${SMTP_USER}>`,
+    to,
+    subject,
+    html,
+  });
+  return info;
+};
+
+module.exports = { sendMail, sendMailOrThrow };
