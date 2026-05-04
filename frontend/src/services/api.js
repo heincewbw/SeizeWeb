@@ -84,4 +84,5 @@ export const adminAPI = {
   deleteAccount: (id) => api.delete(`/api/admin/accounts/${id}`),
   reassignAccount: (id, userId) => api.put(`/api/admin/accounts/${id}/reassign`, { user_id: userId }),
   disconnectAccount: (id) => api.post(`/api/accounts/${id}/disconnect`),
+  testOfflineAlert: () => api.post('/api/admin/test-offline-alert'),
 };

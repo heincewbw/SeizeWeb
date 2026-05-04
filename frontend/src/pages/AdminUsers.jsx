@@ -66,6 +66,7 @@ export default function AdminUsers() {
   const [tokenCopied, setTokenCopied] = useState(false);
   const [reassignUserId, setReassignUserId] = useState('');
   const [reassigning, setReassigning] = useState(false);
+  const [testingEmail, setTestingEmail] = useState(false);
 
   const openDetail = (a) => {
     setDetailModal(a);
@@ -399,9 +400,28 @@ export default function AdminUsers() {
           </div>
         </div>
       )}
-      <div>
-        <h2 className="text-2xl font-bold text-slate-100">Users Overview</h2>
-        <p className="text-sm text-slate-400 mt-0.5">Seluruh user dan performa akun MT4 mereka</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-100">Users Overview</h2>
+          <p className="text-sm text-slate-400 mt-0.5">Seluruh user dan performa akun MT4 mereka</p>
+        </div>
+        <button
+          onClick={async () => {
+            setTestingEmail(true);
+            try {
+              const { data } = await adminAPI.testOfflineAlert();
+              toast.success(`Test email terkirim ke: ${data.sentTo.join(', ')}`);
+            } catch {
+              toast.error('Gagal mengirim test email. Cek SMTP config.');
+            } finally {
+              setTestingEmail(false);
+            }
+          }}
+          disabled={testingEmail}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-200 text-sm rounded-lg transition-colors"
+        >
+          {testingEmail ? 'Mengirim...' : '📧 Test Email Alert'}
+        </button>
       </div>
 
       {/* Summary Cards */}

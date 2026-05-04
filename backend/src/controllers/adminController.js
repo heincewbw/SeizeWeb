@@ -284,42 +284,70 @@ const reassignAccount = async (req, res) => {
   }
 };
 
-// POST /api/admin/test-wa-alert — kirim test notif WA untuk akun tertentu (by login)
-const testWaAlert = async (req, res) => {
-  const { login } = req.body;
-  if (!login) return res.status(400).json({ error: 'login wajib diisi' });
+// POST /api/admin/test-offline-alert
+// Sends a test offline alert email to all admin users immediately
+const { sendMail } = require('../services/emailService');
 
+const testOfflineAlert = async (req, res) => {
   try {
-    const { data: acc, error } = await supabase
-      .from('mt4_accounts')
-      .select('id, login, server, account_name, last_synced')
-      .eq('login', String(login))
-      .maybeSingle();
+    const { data: admins } = await supabase
+      .from('users')
+      .select('email')
+      .eq('role', 'admin')
+      .eq('is_active', true);
 
-    if (error || !acc) return res.status(404).json({ error: `Akun login=${login} tidak ditemukan` });
-
-    const { notifyAdmin } = require('../services/whatsapp');
-    const lastSync = acc.last_synced
-      ? new Date(acc.last_synced).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
-      : 'tidak diketahui';
-
-    const message =
-      `🧪 *SeizeWeb TEST Alert*\n\n` +
-      `Ini adalah pesan test notifikasi.\n\n` +
-      `• *${acc.account_name || acc.login}* (${acc.login}@${acc.server})\n` +
-      `  Last sync: ${lastSync} WIB\n\n` +
-      `_Jika pesan ini terkirim, konfigurasi WA berhasil!_ ✅`;
-
-    const sent = await notifyAdmin(message);
-    if (sent) {
-      return res.json({ success: true, message: 'Test WA terkirim' });
-    } else {
-      return res.status(500).json({ error: 'Gagal kirim WA — cek FONNTE_TOKEN dan ADMIN_WA_NUMBER di env' });
+    if (!admins || admins.length === 0) {
+      return res.status(404).json({ error: 'Tidak ada admin user yang aktif' });
     }
+
+    const fakeAccount = {
+      login: '12345678',
+      server: 'Exness-Real35',
+      account_name: 'Test Account',
+      lastSyncedStr: new Date(Date.now() - 75 * 60 * 1000).toUTCString(), // 75 min ago
+    };
+
+    const rows = `
+      <tr>
+        <td style="padding:8px 12px;border-bottom:1px solid #334155;">${fakeAccount.login}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #334155;">${fakeAccount.server}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #334155;">${fakeAccount.account_name}</td>
+        <td style="padding:8px 12px;border-bottom:1px solid #334155;color:#f87171;">${fakeAccount.lastSyncedStr}</td>
+      </tr>`;
+
+    const html = `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;background:#0f172a;color:#e2e8f0;padding:24px;border-radius:12px;">
+        <h2 style="color:#f43f5e;margin-top:0;">⚠️ MT4 Account Offline Alert <span style="font-size:14px;background:#1e293b;padding:3px 8px;border-radius:6px;margin-left:8px;">TEST</span></h2>
+        <p style="color:#94a3b8;">The following MT4 account(s) have not pushed data for <strong>more than 1 hour</strong>:</p>
+        <table style="width:100%;border-collapse:collapse;font-size:14px;">
+          <thead>
+            <tr style="background:#1e293b;">
+              <th style="padding:8px 12px;text-align:left;color:#94a3b8;">Login</th>
+              <th style="padding:8px 12px;text-align:left;color:#94a3b8;">Server</th>
+              <th style="padding:8px 12px;text-align:left;color:#94a3b8;">Account Name</th>
+              <th style="padding:8px 12px;text-align:left;color:#94a3b8;">Last Seen</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <p style="color:#64748b;font-size:12px;margin-top:24px;">
+          Ini adalah test email dari SeizeWeb. Email ini dikirim pada ${new Date().toUTCString()}.
+        </p>
+      </div>`;
+
+    const subject = '[SeizeWeb] TEST — MT4 Account Offline Alert';
+    const sent = [];
+    for (const admin of admins) {
+      await sendMail(admin.email, subject, html);
+      sent.push(admin.email);
+    }
+
+    logger.info(`testOfflineAlert: test email sent to ${sent.join(', ')}`);
+    return res.json({ success: true, sentTo: sent });
   } catch (err) {
-    logger.error('TestWaAlert exception:', err);
-    return res.status(500).json({ error: 'Internal server error' });
+    logger.error('testOfflineAlert error:', err);
+    return res.status(500).json({ error: 'Gagal mengirim test email' });
   }
 };
 
-module.exports = { getUsersOverview, updateAccountMeta, addAccountForUser, deleteAccount, reassignAccount, testWaAlert };
+module.exports = { getUsersOverview, updateAccountMeta, addAccountForUser, deleteAccount, reassignAccount, testOfflineAlert };
