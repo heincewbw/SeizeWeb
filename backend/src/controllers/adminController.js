@@ -234,4 +234,54 @@ const addAccountForUser = async (req, res) => {
   }
 };
 
-module.exports = { getUsersOverview, updateAccountMeta, addAccountForUser };
+// DELETE /api/admin/accounts/:id — hard delete account + all related data
+const deleteAccount = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { error } = await supabase
+      .from('mt4_accounts')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return res.json({ success: true });
+  } catch (err) {
+    logger.error('DeleteAccount exception:', err);
+    return res.status(500).json({ error: 'Gagal menghapus akun' });
+  }
+};
+
+// PUT /api/admin/accounts/:id/reassign — move account to another user
+const reassignAccount = async (req, res) => {
+  const { id } = req.params;
+  const { user_id } = req.body;
+  if (!user_id) return res.status(400).json({ error: 'user_id wajib diisi' });
+
+  try {
+    const { data: targetUser, error: userErr } = await supabase
+      .from('users')
+      .select('id')
+      .eq('id', user_id)
+      .single();
+    if (userErr || !targetUser) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    const { data, error } = await supabase
+      .from('mt4_accounts')
+      .update({ user_id })
+      .eq('id', id)
+      .select('id, login, server, account_name, user_id')
+      .single();
+    if (error) throw error;
+
+    // Also update user_id in related tables
+    await supabase.from('equity_snapshots').update({ user_id }).eq('mt4_account_id', id);
+    await supabase.from('open_positions').update({ user_id }).eq('mt4_account_id', id);
+    await supabase.from('trade_history').update({ user_id }).eq('mt4_account_id', id);
+
+    return res.json({ account: data });
+  } catch (err) {
+    logger.error('ReassignAccount exception:', err);
+    return res.status(500).json({ error: 'Gagal memindahkan akun' });
+  }
+};
+
+module.exports = { getUsersOverview, updateAccountMeta, addAccountForUser, deleteAccount, reassignAccount };

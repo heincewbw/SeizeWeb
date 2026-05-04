@@ -64,12 +64,15 @@ export default function AdminUsers() {
   const [tokenValue, setTokenValue] = useState(null);
   const [tokenLoading, setTokenLoading] = useState(false);
   const [tokenCopied, setTokenCopied] = useState(false);
+  const [reassignUserId, setReassignUserId] = useState('');
+  const [reassigning, setReassigning] = useState(false);
 
   const openDetail = (a) => {
     setDetailModal(a);
     setDetailName(a.account_name || '');
     setTokenValue(null);
     setTokenCopied(false);
+    setReassignUserId('');
   };
 
   const handleDetailSave = async () => {
@@ -129,6 +132,33 @@ export default function AdminUsers() {
       toast.success('Akun dihapus');
     } catch (err) {
       toast.error(err.response?.data?.error || 'Gagal menghapus');
+    }
+  };
+
+  const handleReassign = async () => {
+    if (!detailModal || !reassignUserId) return;
+    if (!window.confirm(`Pindahkan akun ${detailModal.login} ke user ini?`)) return;
+    setReassigning(true);
+    try {
+      await adminAPI.reassignAccount(detailModal.id, reassignUserId);
+      const targetUser = users.find((u) => u.id === reassignUserId);
+      setUsers((prev) =>
+        prev.map((u) => ({
+          ...u,
+          accounts:
+            u.id === detailModal._userId
+              ? u.accounts.filter((a) => a.id !== detailModal.id)
+              : u.id === reassignUserId
+              ? [...u.accounts, { ...detailModal, _userId: reassignUserId }]
+              : u.accounts,
+        }))
+      );
+      toast.success(`Akun dipindahkan ke ${targetUser?.full_name || reassignUserId}`);
+      setDetailModal(null);
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Gagal memindahkan akun');
+    } finally {
+      setReassigning(false);
     }
   };
 
@@ -341,6 +371,29 @@ export default function AdminUsers() {
                   <TrashIcon className="w-4 h-4" />
                   Hapus Akun
                 </button>
+              </div>
+              {/* Reassign to another user */}
+              <div className="space-y-2 pt-1">
+                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Pindahkan ke User Lain</p>
+                <div className="flex gap-2">
+                  <select
+                    className="flex-1 bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500"
+                    value={reassignUserId}
+                    onChange={(e) => setReassignUserId(e.target.value)}
+                  >
+                    <option value="">-- Pilih user --</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleReassign}
+                    disabled={!reassignUserId || reassigning}
+                    className="px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors flex-shrink-0"
+                  >
+                    {reassigning ? '...' : 'Pindah'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
