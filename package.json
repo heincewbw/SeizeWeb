@@ -6,8 +6,11 @@
     "node": ">=18.0.0",
     "npm": ">=9.0.0"
   },
+  "dependencies": {
+    "nodemailer": "^8.0.7"
+  },
   "scripts": {
-    "install:all": "npm --prefix backend install && npm --prefix frontend install",
+    "install:all": "npm install && npm --prefix backend install && npm --prefix frontend install",
     "build": "npm --prefix frontend run build",
     "start": "npm --prefix backend start"
   }

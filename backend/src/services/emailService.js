@@ -1,9 +1,18 @@
-const nodemailer = require('nodemailer');
+let nodemailer;
+try {
+  nodemailer = require('nodemailer');
+} catch (e) {
+  nodemailer = null;
+}
 const logger = require('../config/logger');
 
 let transporter = null;
 
 const getTransporter = () => {
+  if (!nodemailer) {
+    logger.warn('emailService: nodemailer not installed, email notifications disabled');
+    return null;
+  }
   if (transporter) return transporter;
 
   const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS } = process.env;
