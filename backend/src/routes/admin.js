@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getUsersOverview, updateAccountMeta, addAccountForUser, deleteAccount, reassignAccount } = require('../controllers/adminController');
+const { getUsersOverview, updateAccountMeta, addAccountForUser, deleteAccount, reassignAccount, testWaAlert } = require('../controllers/adminController');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 router.use(authenticateToken);
@@ -11,5 +11,6 @@ router.put('/accounts/:id', updateAccountMeta);
 router.post('/accounts', addAccountForUser);
 router.delete('/accounts/:id', deleteAccount);
 router.put('/accounts/:id/reassign', reassignAccount);
+router.post('/test-wa-alert', testWaAlert);
 
 module.exports = router;

@@ -284,4 +284,42 @@ const reassignAccount = async (req, res) => {
   }
 };
 
-module.exports = { getUsersOverview, updateAccountMeta, addAccountForUser, deleteAccount, reassignAccount };
+// POST /api/admin/test-wa-alert — kirim test notif WA untuk akun tertentu (by login)
+const testWaAlert = async (req, res) => {
+  const { login } = req.body;
+  if (!login) return res.status(400).json({ error: 'login wajib diisi' });
+
+  try {
+    const { data: acc, error } = await supabase
+      .from('mt4_accounts')
+      .select('id, login, server, account_name, last_synced')
+      .eq('login', String(login))
+      .maybeSingle();
+
+    if (error || !acc) return res.status(404).json({ error: `Akun login=${login} tidak ditemukan` });
+
+    const { notifyAdmin } = require('../services/whatsapp');
+    const lastSync = acc.last_synced
+      ? new Date(acc.last_synced).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+      : 'tidak diketahui';
+
+    const message =
+      `🧪 *SeizeWeb TEST Alert*\n\n` +
+      `Ini adalah pesan test notifikasi.\n\n` +
+      `• *${acc.account_name || acc.login}* (${acc.login}@${acc.server})\n` +
+      `  Last sync: ${lastSync} WIB\n\n` +
+      `_Jika pesan ini terkirim, konfigurasi WA berhasil!_ ✅`;
+
+    const sent = await notifyAdmin(message);
+    if (sent) {
+      return res.json({ success: true, message: 'Test WA terkirim' });
+    } else {
+      return res.status(500).json({ error: 'Gagal kirim WA — cek FONNTE_TOKEN dan ADMIN_WA_NUMBER di env' });
+    }
+  } catch (err) {
+    logger.error('TestWaAlert exception:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+module.exports = { getUsersOverview, updateAccountMeta, addAccountForUser, deleteAccount, reassignAccount, testWaAlert };
