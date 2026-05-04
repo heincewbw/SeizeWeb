@@ -10,6 +10,10 @@ export default function AdminAddAccountModal({ user, onClose, onSuccess }) {
     account_name: '',
     currency: 'USD',
     initial_balance: '',
+    nama_provider: '',
+    ip_vps: '',
+    email_vps: '',
+    email_exness: '',
   });
   const [loading, setLoading] = useState(false);
 
@@ -24,6 +28,10 @@ export default function AdminAddAccountModal({ user, onClose, onSuccess }) {
         account_name: form.account_name || undefined,
         currency: form.currency,
         initial_balance: form.initial_balance !== '' ? Number(form.initial_balance) : 0,
+        nama_provider: form.nama_provider,
+        ip_vps: form.ip_vps,
+        email_vps: form.email_vps,
+        email_exness: form.email_exness,
       });
       toast.success(`Akun ${form.login} berhasil ditambahkan ke ${user.full_name}`);
       onSuccess(data.account);
@@ -134,6 +142,64 @@ export default function AdminAddAccountModal({ user, onClose, onSuccess }) {
               USC: masukkan Modal Awal dalam <strong>USD</strong> (misal: 1000 untuk $1,000). Nilai disimpan sebagai cents otomatis.
             </p>
           )}
+
+          <div className="border-t border-slate-700 pt-4">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Info VPS & Provider</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                  Nama Provider <span className="text-danger-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="e.g. Forexchief VPS"
+                  value={form.nama_provider}
+                  onChange={(e) => setForm({ ...form, nama_provider: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                  IP VPS <span className="text-danger-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="e.g. 192.168.1.100"
+                  value={form.ip_vps}
+                  onChange={(e) => setForm({ ...form, ip_vps: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                  Email VPS <span className="text-danger-400">*</span>
+                </label>
+                <input
+                  type="email"
+                  className="input-field"
+                  placeholder="e.g. vps@gmail.com"
+                  value={form.email_vps}
+                  onChange={(e) => setForm({ ...form, email_vps: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                  Email Exness <span className="text-danger-400">*</span>
+                </label>
+                <input
+                  type="email"
+                  className="input-field"
+                  placeholder="e.g. trader@exness.com"
+                  value={form.email_exness}
+                  onChange={(e) => setForm({ ...form, email_exness: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+          </div>
 
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">

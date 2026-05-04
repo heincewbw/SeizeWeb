@@ -17,7 +17,7 @@ const getUsersOverview = async (req, res) => {
     const { data: accounts, error: accErr } = await supabase
       .from('mt4_accounts')
       .select(
-        'id, user_id, login, server, account_name, currency, initial_balance, balance, equity, profit, is_connected, last_synced'
+        'id, user_id, login, server, account_name, currency, initial_balance, balance, equity, profit, is_connected, last_synced, nama_provider, ip_vps, email_vps, email_exness'
       )
       .order('created_at', { ascending: true });
 
@@ -102,6 +102,10 @@ const getUsersOverview = async (req, res) => {
         max_dd: Math.max(0, maxDd),
         is_connected: acc.is_connected,
         last_synced: acc.last_synced,
+        nama_provider: acc.nama_provider,
+        ip_vps: acc.ip_vps,
+        email_vps: acc.email_vps,
+        email_exness: acc.email_exness,
       });
     }
 
@@ -151,10 +155,14 @@ const updateAccountMeta = async (req, res) => {
 
 // POST /api/admin/accounts — create MT4 account for a specific user
 const addAccountForUser = async (req, res) => {
-  const { user_id, login, server, account_name, currency, initial_balance } = req.body;
+  const { user_id, login, server, account_name, currency, initial_balance,
+          nama_provider, ip_vps, email_vps, email_exness } = req.body;
 
   if (!user_id || !login || !server) {
     return res.status(400).json({ error: 'user_id, login, dan server wajib diisi' });
+  }
+  if (!nama_provider || !ip_vps || !email_vps || !email_exness) {
+    return res.status(400).json({ error: 'nama_provider, ip_vps, email_vps, dan email_exness wajib diisi' });
   }
 
   // Verify user exists
@@ -197,6 +205,10 @@ const addAccountForUser = async (req, res) => {
           account_name: account_name || `Account ${login}`,
           ...(currency ? { currency } : {}),
           ...(initial_balance !== undefined ? { initial_balance: normalizedInitialBalance } : {}),
+          nama_provider,
+          ip_vps,
+          email_vps,
+          email_exness,
         })
         .eq('id', existing.id)
         .select()
@@ -220,6 +232,10 @@ const addAccountForUser = async (req, res) => {
           free_margin: 0,
           profit: 0,
           is_connected: false,
+          nama_provider,
+          ip_vps,
+          email_vps,
+          email_exness,
         })
         .select()
         .single();

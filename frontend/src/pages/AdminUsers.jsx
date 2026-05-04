@@ -325,6 +325,23 @@ export default function AdminUsers() {
                   placeholder="Nama akun..."
                 />
               </div>
+              {/* Info VPS & Provider */}
+              {(detailModal.nama_provider || detailModal.ip_vps || detailModal.email_vps || detailModal.email_exness) && (
+                <div className="bg-slate-800/50 rounded-lg px-3 py-3 space-y-1.5">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Info VPS & Provider</p>
+                  {[
+                    { label: 'Provider', value: detailModal.nama_provider },
+                    { label: 'IP VPS', value: detailModal.ip_vps },
+                    { label: 'Email VPS', value: detailModal.email_vps },
+                    { label: 'Email Exness', value: detailModal.email_exness },
+                  ].map((row) => row.value ? (
+                    <div key={row.label} className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-slate-500 flex-shrink-0">{row.label}</span>
+                      <span className="text-xs text-slate-200 font-mono truncate text-right">{row.value}</span>
+                    </div>
+                  ) : null)}
+                </div>
+              )}
               {/* EA Token */}
               <div className="space-y-1.5">
                 <button
