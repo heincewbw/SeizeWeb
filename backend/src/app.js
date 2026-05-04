@@ -18,6 +18,7 @@ const mt4PushRoutes = require('./routes/mt4Push');
 const withdrawalRoutes = require('./routes/withdrawals');
 const adminRoutes = require('./routes/admin');
 const supabase = require('./config/supabase');
+const { startMT4Monitor } = require('./jobs/mt4Monitor');
 
 const app = express();
 const server = http.createServer(app);
@@ -214,6 +215,7 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   logger.info(`SeizeWeb API running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
   startRealtimeSync();
+  startMT4Monitor();
 });
 
 module.exports = { app, server, io };
