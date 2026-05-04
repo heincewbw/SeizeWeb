@@ -1,12 +1,14 @@
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { getSocket } from '@/services/socket';
 import useDashboardStore from '@/store/useDashboardStore';
 
 export default function Layout() {
   const { updateAccount, setPositions } = useDashboardStore();
+  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     const socket = getSocket();
@@ -28,10 +30,24 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen bg-dark-900 overflow-hidden">
-      <Sidebar />
+      {/* Mobile backdrop overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-20 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      <Sidebar
+        desktopCollapsed={desktopCollapsed}
+        mobileOpen={mobileOpen}
+        onDesktopToggle={() => setDesktopCollapsed((v) => !v)}
+        onMobileClose={() => setMobileOpen(false)}
+      />
+
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <Header />
-        <main className="flex-1 overflow-y-auto p-6">
+        <Header onMobileMenuToggle={() => setMobileOpen((v) => !v)} />
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           <div className="max-w-7xl mx-auto animate-fade-in">
             <Outlet />
           </div>

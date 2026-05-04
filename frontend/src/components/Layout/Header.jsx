@@ -12,7 +12,7 @@ const pageTitles = {
   '/settings': 'Settings',
 };
 
-export default function Header() {
+export default function Header({ onMobileMenuToggle }) {
   const location = useLocation();
   const title = pageTitles[location.pathname] || 'SeizeWeb';
   const [connected, setConnected] = useState(false);
@@ -35,8 +35,16 @@ export default function Header() {
   }, []);
 
   return (
-    <header className="h-16 flex-shrink-0 bg-dark-950 border-b border-slate-800 flex items-center justify-between px-6">
+    <header className="h-16 flex-shrink-0 bg-dark-950 border-b border-slate-800 flex items-center justify-between px-4 lg:px-6">
       <div className="flex items-center gap-3">
+        {/* Mobile hamburger */}
+        <button
+          onClick={onMobileMenuToggle}
+          className="lg:hidden p-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-colors"
+          aria-label="Open menu"
+        >
+          <Bars3Icon className="w-5 h-5" />
+        </button>
         <h1 className="text-lg font-semibold text-slate-100">{title}</h1>
       </div>
 
