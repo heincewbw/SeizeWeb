@@ -342,27 +342,7 @@ export default function AdminUsers() {
                   ) : null)}
                 </div>
               )}
-              {/* EA Token */}
-              <div className="space-y-1.5">
-                <button
-                  onClick={handleShowToken}
-                  disabled={tokenLoading}
-                  className="flex items-center gap-2 text-xs text-brand-400 hover:text-brand-300 border border-brand-500/30 hover:border-brand-400/50 rounded-lg px-3 py-2 w-full transition-colors"
-                >
-                  <KeyIcon className="w-3.5 h-3.5" />
-                  {tokenLoading ? 'Mengambil token...' : tokenValue ? 'Sembunyikan EA Token' : 'Lihat EA Token'}
-                </button>
-                {tokenValue && (
-                  <div className="bg-slate-900 rounded-lg p-3 border border-brand-500/20">
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 text-xs font-mono text-slate-300 break-all">{tokenValue}</code>
-                      <button onClick={handleCopyToken} className="btn-secondary px-2 py-1.5 flex-shrink-0">
-                        {tokenCopied ? <ClipboardDocumentCheckIcon className="w-4 h-4 text-brand-400" /> : <ClipboardIcon className="w-4 h-4" />}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+
             </div>
             {/* Footer Buttons */}
             <div className="px-6 pb-5 flex flex-col gap-2">
@@ -373,46 +353,13 @@ export default function AdminUsers() {
               >
                 {detailSaving ? 'Menyimpan...' : 'Simpan'}
               </button>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={handleDetailDisconnect}
-                  disabled={!detailModal.is_connected}
-                  className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-slate-600 text-slate-400 hover:text-slate-200 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed text-sm transition-colors"
-                >
-                  <SignalSlashIcon className="w-4 h-4" />
-                  Disconnect
-                </button>
-                <button
+              <button
                   onClick={handleDetailDelete}
-                  className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-danger-500/40 text-danger-400 hover:bg-danger-500/10 text-sm transition-colors"
+                  className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-danger-500/40 text-danger-400 hover:bg-danger-500/10 text-sm transition-colors w-full"
                 >
                   <TrashIcon className="w-4 h-4" />
                   Hapus Akun
                 </button>
-              </div>
-              {/* Reassign to another user */}
-              <div className="space-y-2 pt-1">
-                <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Pindahkan ke User Lain</p>
-                <div className="flex gap-2">
-                  <select
-                    className="flex-1 bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-brand-500"
-                    value={reassignUserId}
-                    onChange={(e) => setReassignUserId(e.target.value)}
-                  >
-                    <option value="">-- Pilih user --</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={handleReassign}
-                    disabled={!reassignUserId || reassigning}
-                    className="px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium transition-colors flex-shrink-0"
-                  >
-                    {reassigning ? '...' : 'Pindah'}
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
         </div>
