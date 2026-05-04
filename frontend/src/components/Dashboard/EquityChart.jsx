@@ -20,6 +20,15 @@ const DiamondDot = (props) => {
   );
 };
 
+const USD_NAMES = ['Balance', 'Period Profit (USD)'];
+
+const formatTooltipValue = (name, value) => {
+  if (!USD_NAMES.includes(name)) return `${value.toFixed(2)}%`;
+  const abs = Math.abs(value);
+  const formatted = abs >= 1000 ? `${(abs / 1000).toFixed(2)}k` : abs.toFixed(2);
+  return value < 0 ? `-$${formatted}` : `$${formatted}`;
+};
+
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -28,7 +37,7 @@ const CustomTooltip = ({ active, payload, label }) => {
       {payload.map((entry) =>
         entry.value != null ? (
           <p key={entry.name} className="font-medium py-0.5" style={{ color: entry.color }}>
-            {entry.name}: {typeof entry.value === 'number' ? `${entry.value.toFixed(2)}%` : entry.value}
+            {entry.name}: {typeof entry.value === 'number' ? formatTooltipValue(entry.name, entry.value) : entry.value}
           </p>
         ) : null
       )}
@@ -55,6 +64,7 @@ export default function EquityChart({ data, loading }) {
       const equityGrowth = ((equity - firstEquity) / firstEquity) * 100;
       const balanceGrowth = ((balance - firstBalance) / firstBalance) * 100;
       const periodProfit = i === 0 ? 0 : ((equity - prevEquity) / Math.abs(prevEquity)) * 100;
+      const profitUsd = i === 0 ? 0 : equity - prevEquity;
 
       if (equity > peakEquity) peakEquity = equity;
       const drawdown = peakEquity > 0 ? ((equity - peakEquity) / peakEquity) * 100 : 0;
@@ -65,14 +75,19 @@ export default function EquityChart({ data, loading }) {
         balanceGrowth: parseFloat(balanceGrowth.toFixed(2)),
         periodProfit: parseFloat(periodProfit.toFixed(2)),
         drawdown: parseFloat(drawdown.toFixed(2)),
+        balanceUsd: parseFloat(balance.toFixed(2)),
+        profitUsd: parseFloat(profitUsd.toFixed(2)),
       };
     });
   }, [data]);
 
-  const showBars = activeTab === 'Chart' || activeTab === 'Profit';
+  const showBars = activeTab === 'Chart';
+  const showProfitUsd = activeTab === 'Profit';
   const showEquityLine = activeTab === 'Chart' || activeTab === 'Growth';
-  const showBalanceLine = activeTab === 'Chart' || activeTab === 'Balance' || activeTab === 'Growth';
+  const showBalanceLine = activeTab === 'Chart' || activeTab === 'Growth';
+  const showBalanceUsd = activeTab === 'Balance';
   const showDrawdown = activeTab === 'Drawdown';
+  const isUsdTab = activeTab === 'Balance' || activeTab === 'Profit';
 
   return (
     <div className="card">
@@ -128,18 +143,35 @@ export default function EquityChart({ data, loading }) {
               tick={{ fontSize: 10, fill: '#64748b' }}
               tickLine={false}
               axisLine={false}
-              tickFormatter={(v) => `${v}%`}
-              width={42}
+              tickFormatter={(v) => {
+                if (isUsdTab) {
+                  return Math.abs(v) >= 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${v}`;
+                }
+                return `${v}%`;
+              }}
+              width={48}
             />
             <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#334155', strokeWidth: 1 }} />
 
-            {/* Period profit / drawdown bars */}
+            {/* Period profit bars (% — Chart tab) */}
             {showBars && (
               <Bar dataKey="periodProfit" name="Period Profit" maxBarSize={7} radius={[1, 1, 0, 0]}>
                 {chartData.map((entry, i) => (
                   <Cell
                     key={`cell-${i}`}
                     fill={entry.periodProfit >= 0 ? '#22c55e' : '#ef4444'}
+                    fillOpacity={0.75}
+                  />
+                ))}
+              </Bar>
+            )}
+            {/* Period profit bars (USD — Profit tab) */}
+            {showProfitUsd && (
+              <Bar dataKey="profitUsd" name="Period Profit (USD)" maxBarSize={7} radius={[1, 1, 0, 0]}>
+                {chartData.map((entry, i) => (
+                  <Cell
+                    key={`cell-${i}`}
+                    fill={entry.profitUsd >= 0 ? '#22c55e' : '#ef4444'}
                     fillOpacity={0.75}
                   />
                 ))}
@@ -162,7 +194,7 @@ export default function EquityChart({ data, loading }) {
               />
             )}
 
-            {/* Balance/Overall Growth line — rose with small circle dots */}
+            {/* Balance Growth line % — Chart/Growth tab */}
             {showBalanceLine && (
               <Line
                 type="monotone"
@@ -172,6 +204,18 @@ export default function EquityChart({ data, loading }) {
                 strokeWidth={1.5}
                 dot={{ r: 2.5, fill: '#f43f5e', strokeWidth: 0 }}
                 activeDot={{ r: 4, fill: '#f43f5e', strokeWidth: 0 }}
+              />
+            )}
+            {/* Balance USD line — Balance tab */}
+            {showBalanceUsd && (
+              <Line
+                type="monotone"
+                dataKey="balanceUsd"
+                name="Balance"
+                stroke="#38bdf8"
+                strokeWidth={1.5}
+                dot={{ r: 2.5, fill: '#38bdf8', strokeWidth: 0 }}
+                activeDot={{ r: 4, fill: '#38bdf8', strokeWidth: 0 }}
               />
             )}
 
@@ -210,6 +254,21 @@ export default function EquityChart({ data, loading }) {
                 <circle cx="10" cy="5" r="2.5" fill="#f43f5e" />
               </svg>
               <span>Growth</span>
+            </div>
+          )}
+          {showBalanceUsd && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+              <svg width="20" height="10">
+                <line x1="0" y1="5" x2="20" y2="5" stroke="#38bdf8" strokeWidth="1.5" />
+                <circle cx="10" cy="5" r="2.5" fill="#38bdf8" />
+              </svg>
+              <span>Balance (USD)</span>
+            </div>
+          )}
+          {showProfitUsd && (
+            <div className="flex items-center gap-1.5 text-xs text-slate-400">
+              <span className="inline-block w-3 h-3 rounded-sm bg-emerald-500 opacity-75" />
+              <span>Profit per Periode (USD)</span>
             </div>
           )}
           {showDrawdown && (
