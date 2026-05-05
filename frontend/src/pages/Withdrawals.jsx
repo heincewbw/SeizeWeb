@@ -74,7 +74,7 @@ export default function Withdrawals() {
       <div>
         <h2 className="text-2xl font-bold text-slate-100">Riwayat Withdrawal</h2>
         <p className="text-sm text-slate-400 mt-0.5">
-          Withdrawal terdeteksi otomatis dari histori MT4 â€” {pagination.total} transaksi
+          Withdrawal terdeteksi otomatis dari histori MT4 &mdash; {pagination.total} transaksi
         </p>
       </div>
 
@@ -149,12 +149,12 @@ export default function Withdrawals() {
                   <tr key={w.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
                     {isAdmin && (
                       <td className="px-4 py-3 text-slate-300">
-                        <p className="font-medium">{w.users?.full_name || 'â€”'}</p>
+                        <p className="font-medium">{w.users?.full_name || '—'}</p>
                         <p className="text-xs text-slate-500">{w.users?.email}</p>
                       </td>
                     )}
                     <td className="px-4 py-3 text-slate-300">
-                      <p className="font-medium">{w.mt4_accounts?.account_name || 'â€”'}</p>
+                      <p className="font-medium">{w.mt4_accounts?.account_name || '—'}</p>
                       <p className="text-xs text-slate-500">{w.mt4_accounts?.login} · {w.mt4_accounts?.server}</p>
                     </td>
                     <td className="px-4 py-3 font-mono text-slate-400 text-xs">{w.ticket ?? '—'}</td>
@@ -246,7 +246,7 @@ export default function Withdrawals() {
                   onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value })}
                   required
                 >
-                  <option value="">â€” Pilih status â€”</option>
+                  <option value="">— Pilih status —</option>
                   <option value="verified">Verified</option>
                   <option value="rejected">Rejected</option>
                 </select>

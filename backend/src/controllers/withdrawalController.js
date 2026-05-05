@@ -64,13 +64,19 @@ const getWithdrawals = async (req, res) => {
 
     if (error) throw error;
 
-    // Normalize: map notes→comment and close_time fallback for backward compat
-    const normalized = (data || []).map((w) => ({
-      ...w,
-      comment: w.comment ?? w.notes ?? '',
-      close_time: w.close_time ?? w.created_at,
-      type: w.type ?? 'withdrawal',
-    }));
+    // Normalize: map notes→comment, close_time fallback, and convert USC cents → USD
+    const normalized = (data || []).map((w) => {
+      const currency = w.mt4_accounts?.currency || w.currency || 'USD';
+      const divisor = currency === 'USC' ? 100 : 1;
+      return {
+        ...w,
+        amount: Number(w.amount) / divisor,
+        currency: currency === 'USC' ? 'USD' : currency,
+        comment: w.comment ?? w.notes ?? '',
+        close_time: w.close_time ?? w.created_at,
+        type: w.type ?? 'withdrawal',
+      };
+    });
 
     return res.json({
       withdrawals: normalized,

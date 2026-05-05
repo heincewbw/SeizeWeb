@@ -266,6 +266,8 @@ const receiveMT4Push = async (req, res) => {
         return 'withdrawal';
       };
 
+      // USC accounts: EA sends raw cents values. Store as cents (same as balance/equity convention).
+      // Conversion to USD happens at read time in withdrawalController.
       const withdrawalRows = history
         .filter((h) => h.type === 'BALANCE' && Number(h.profit) < 0)
         .map((h) => ({
