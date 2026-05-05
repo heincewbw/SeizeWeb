@@ -380,26 +380,33 @@ const syncWithdrawals = async (req, res) => {
     // Fetch BALANCE entries with negative profit from trade_history
     let query = supabase
       .from('trade_history')
-      .select('mt4_account_id, user_id, ticket, profit, comment, close_time, mt4_accounts(currency)')
+      .select('mt4_account_id, user_id, ticket, profit, comment, close_time')
       .eq('type', 'BALANCE')
       .lt('profit', 0);
 
     if (account_id) query = query.eq('mt4_account_id', account_id);
 
     const { data: balanceRows, error: fetchErr } = await query;
-    if (fetchErr) throw fetchErr;
+    if (fetchErr) throw new Error(`trade_history query failed: ${fetchErr.message}`);
 
     if (!balanceRows || balanceRows.length === 0) {
       return res.json({ success: true, inserted: 0, message: 'No BALANCE withdrawal entries found in trade_history' });
     }
 
-    // Get all already-tracked tickets
+    // Fetch currency for each involved account (separate query, no join)
     const accountIds = [...new Set(balanceRows.map((r) => r.mt4_account_id))];
+    const { data: accountRows } = await supabase
+      .from('mt4_accounts')
+      .select('id, currency')
+      .in('id', accountIds);
+    const currencyMap = {};
+    for (const a of accountRows || []) currencyMap[a.id] = a.currency;
+
+    // Get already-tracked tickets so we don't duplicate
     const { data: existing } = await supabase
       .from('withdrawals')
       .select('mt4_account_id, ticket')
       .in('mt4_account_id', accountIds);
-
     const existingSet = new Set((existing || []).map((r) => `${r.mt4_account_id}:${r.ticket}`));
 
     const detectType = (comment) => {
@@ -414,7 +421,7 @@ const syncWithdrawals = async (req, res) => {
         user_id: h.user_id,
         ticket: h.ticket,
         amount: Math.abs(Number(h.profit)),
-        currency: h.mt4_accounts?.currency || 'USD',
+        currency: currencyMap[h.mt4_account_id] || 'USD',
         type: detectType(h.comment),
         comment: h.comment || '',
         close_time: h.close_time,
@@ -426,12 +433,12 @@ const syncWithdrawals = async (req, res) => {
     }
 
     const { error: insertErr } = await supabase.from('withdrawals').insert(newRows);
-    if (insertErr) throw insertErr;
+    if (insertErr) throw new Error(`withdrawals insert failed: ${insertErr.message}`);
 
     logger.info(`syncWithdrawals: inserted ${newRows.length} withdrawal(s)${account_id ? ` for account ${account_id}` : ''}`);
     return res.json({ success: true, inserted: newRows.length });
   } catch (err) {
-    logger.error('syncWithdrawals error:', err);
+    logger.error('syncWithdrawals error:', err.message);
     return res.status(500).json({ error: err.message });
   }
 };
