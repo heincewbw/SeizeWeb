@@ -18,7 +18,7 @@ export default function Register() {
     try {
       const { data } = await authAPI.register(form);
       login(data.token, data.user);
-      toast.success('Account created! Welcome to SeizeWeb.');
+      toast.success('Account created! Welcome to AceCapital.');
       navigate('/dashboard');
     } catch (err) {
       const errors = err.response?.data?.errors;
@@ -38,12 +38,12 @@ export default function Register() {
               <path d="M3 17L7 13L11 15L15 9L21 12" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <span className="text-2xl font-bold text-white">SeizeWeb</span>
+          <span className="text-2xl font-bold text-white">AceCapital</span>
         </div>
 
         <div className="card animate-slide-up">
           <h2 className="text-xl font-semibold text-slate-100 mb-1">Create account</h2>
-          <p className="text-sm text-slate-400 mb-6">Join SeizeWeb investor portal</p>
+          <p className="text-sm text-slate-400 mb-6">Join AceCapital investor portal</p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>

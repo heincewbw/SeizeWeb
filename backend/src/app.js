@@ -132,7 +132,7 @@ app.use('/api/admin', adminRoutes);
 app.get('/health', (req, res) => {
   res.json({
     status: 'healthy',
-    service: 'SeizeWeb API',
+    service: 'AceCapital API',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
   });
@@ -213,7 +213,7 @@ const startRealtimeSync = async () => {
 // ─── Start Server ────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  logger.info(`SeizeWeb API running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+  logger.info(`AceCapital API running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
   startRealtimeSync();
   startOfflineChecker();
 });

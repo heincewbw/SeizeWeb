@@ -27,6 +27,7 @@ const getTransporter = () => {
     host: SMTP_HOST,
     port,
     secure: port === 465,
+    requireTLS: port !== 465,
     auth: { user: SMTP_USER, pass: SMTP_PASS },
     tls: { rejectUnauthorized: false },
   });
@@ -46,7 +47,7 @@ const sendMail = async (to, subject, html) => {
 
   try {
     const info = await t.sendMail({
-      from: `"SeizeWeb Alert" <${process.env.SMTP_USER}>`,
+      from: `"AceCapital Alert" <${process.env.SMTP_USER}>`,
       to,
       subject,
       html,
@@ -70,12 +71,13 @@ const sendMailOrThrow = async (to, subject, html) => {
     host: SMTP_HOST,
     port: port2,
     secure: port2 === 465,
+    requireTLS: port2 !== 465,
     auth: { user: SMTP_USER, pass: SMTP_PASS },
     tls: { rejectUnauthorized: false },
   });
 
   const info = await t.sendMail({
-    from: `"SeizeWeb Alert" <${SMTP_USER}>`,
+    from: `"AceCapital Alert" <${SMTP_USER}>`,
     to,
     subject,
     html,

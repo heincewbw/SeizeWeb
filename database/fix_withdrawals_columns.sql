@@ -6,9 +6,21 @@
 
 ALTER TABLE withdrawals
   ADD COLUMN IF NOT EXISTS ticket     BIGINT,
-  ADD COLUMN IF NOT EXISTS type       TEXT NOT NULL DEFAULT 'withdrawal',
   ADD COLUMN IF NOT EXISTS comment    TEXT,
   ADD COLUMN IF NOT EXISTS close_time TIMESTAMPTZ;
+
+-- Add type column safely (TEXT with default, no NOT NULL constraint during add)
+ALTER TABLE withdrawals ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'withdrawal';
+UPDATE withdrawals SET type = 'withdrawal' WHERE type IS NULL;
+
+-- Fix status check constraint: drop old one (whatever values it had) and recreate
+-- with the correct values used by the application: detected, verified, rejected
+ALTER TABLE withdrawals DROP CONSTRAINT IF EXISTS withdrawals_status_check;
+ALTER TABLE withdrawals
+  ADD CONSTRAINT withdrawals_status_check CHECK (status IN ('detected', 'verified', 'rejected'));
+
+-- Ensure status default is 'detected'
+ALTER TABLE withdrawals ALTER COLUMN status SET DEFAULT 'detected';
 
 -- Add CHECK constraint on type (only if not already exists)
 DO $$

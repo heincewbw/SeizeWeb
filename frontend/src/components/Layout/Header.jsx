@@ -14,7 +14,7 @@ const pageTitles = {
 
 export default function Header({ onMobileMenuToggle }) {
   const location = useLocation();
-  const title = pageTitles[location.pathname] || 'SeizeWeb';
+  const title = pageTitles[location.pathname] || 'AceCapital';
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {

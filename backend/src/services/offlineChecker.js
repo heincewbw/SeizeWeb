@@ -53,7 +53,7 @@ const buildEmailHtml = (offlineAccounts) => {
         <tbody>${rows}</tbody>
       </table>
       <p style="color:#64748b;font-size:12px;margin-top:24px;">
-        This alert was generated automatically by SeizeWeb at ${new Date().toUTCString()}.
+        This alert was generated automatically by AceCapital at ${new Date().toUTCString()}.
         No further alert will be sent for these accounts until they reconnect.
       </p>
     </div>`;
@@ -138,7 +138,7 @@ const runOfflineCheck = async () => {
       return;
     }
 
-    const subject = `[SeizeWeb] ${offline.length} MT4 Account${offline.length > 1 ? 's' : ''} Offline > 1 Hour`;
+    const subject = `[AceCapital] ${offline.length} MT4 Account${offline.length > 1 ? 's' : ''} Offline > 1 Hour`;
     const html = buildEmailHtml(offline);
 
     for (const admin of admins) {

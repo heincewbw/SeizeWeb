@@ -38,7 +38,7 @@ export default function Login() {
               <path d="M3 17L7 13L11 15L15 9L21 12" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </div>
-          <span className="text-2xl font-bold text-white">SeizeWeb</span>
+          <span className="text-2xl font-bold text-white">AceCapital</span>
         </div>
 
         <div className="card animate-slide-up">

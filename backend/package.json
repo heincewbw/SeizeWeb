@@ -1,7 +1,7 @@
 {
-  "name": "seizeweb-backend",
+  "name": "acecapital-backend",
   "version": "1.0.0",
-  "description": "SeizeWeb - Investor Platform Backend with MT4 Integration",
+  "description": "AceCapital - Investor Platform Backend with MT4 Integration",
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
@@ -19,6 +19,7 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
+    "nodemailer": "^8.0.7",
     "socket.io": "^4.6.2",
     "uuid": "^9.0.0",
     "winston": "^3.11.0"

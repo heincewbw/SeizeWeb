@@ -2,22 +2,22 @@
 -- Migration: enforce UNIQUE(login, server) across all users
 -- Prevents the same MT4 account from being registered under
 -- multiple investors.
---
--- Run in Supabase SQL Editor BEFORE running this migration,
--- manually verify / clean up any remaining duplicates:
---
---   SELECT login, server, COUNT(*) FROM mt4_accounts
---   GROUP BY login, server HAVING COUNT(*) > 1;
 -- ============================================================
 
--- Step 1: Delete the duplicate account under Magdalena (login=52244959, Exness-Real19)
--- Keep the one under Sean Ann (seanraf@gmail.com), remove the one under Magdalena.
+-- Step 1: For every (login, server) pair that has duplicates,
+-- keep the row with the highest balance (most data), delete the rest.
 DELETE FROM mt4_accounts
-WHERE login = '52244959'
-  AND server = 'Exness-Real19'
-  AND user_id = (
-    SELECT id FROM users WHERE email = 'magdalenasuluh@gmail.com'
-  );
+WHERE id IN (
+  SELECT id FROM (
+    SELECT id,
+           ROW_NUMBER() OVER (
+             PARTITION BY login, server
+             ORDER BY balance DESC, equity DESC, created_at ASC
+           ) AS rn
+    FROM mt4_accounts
+  ) ranked
+  WHERE rn > 1
+);
 
 -- Step 2: Drop the old unique constraint
 ALTER TABLE mt4_accounts

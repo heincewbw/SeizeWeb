@@ -9,8 +9,8 @@ const useAuthStore = create((set, get) => ({
   loading: true,
 
   initialize: async () => {
-    const token = localStorage.getItem('seizeweb_token');
-    const userStr = localStorage.getItem('seizeweb_user');
+    const token = localStorage.getItem('acecapital_token');
+    const userStr = localStorage.getItem('acecapital_user');
 
     if (!token || !userStr) {
       set({ loading: false });
@@ -22,23 +22,21 @@ const useAuthStore = create((set, get) => ({
       set({ user: data.user, token, isAuthenticated: true, loading: false });
       connectSocket(token);
     } catch {
-      localStorage.removeItem('seizeweb_token');
-      localStorage.removeItem('seizeweb_user');
-      set({ user: null, token: null, isAuthenticated: false, loading: false });
+      localStorage.removeItem('acecapital_token');
+      localStorage.removeItem('acecapital_user');
     }
   },
 
   login: (token, user) => {
-    localStorage.setItem('seizeweb_token', token);
-    localStorage.setItem('seizeweb_user', JSON.stringify(user));
+    localStorage.setItem('acecapital_token', token);
+    localStorage.setItem('acecapital_user', JSON.stringify(user));
     set({ user, token, isAuthenticated: true });
     connectSocket(token);
   },
 
   logout: () => {
-    localStorage.removeItem('seizeweb_token');
-    localStorage.removeItem('seizeweb_user');
-    disconnectSocket();
+    localStorage.removeItem('acecapital_token');
+    localStorage.removeItem('acecapital_user');
     set({ user: null, token: null, isAuthenticated: false });
   },
 

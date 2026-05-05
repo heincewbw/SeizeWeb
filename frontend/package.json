@@ -1,7 +1,7 @@
 {
-  "name": "seizeweb-frontend",
-  "version": "1.0.0",
-  "description": "SeizeWeb - Investor Platform Frontend",
+  "name": "acecapital-frontend",
+  "version": "0.0.0",
+  "description": "AceCapital - Investor Platform Frontend",
   "type": "module",
   "scripts": {
     "dev": "vite",

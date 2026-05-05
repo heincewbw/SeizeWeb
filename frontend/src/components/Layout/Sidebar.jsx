@@ -60,7 +60,7 @@ export default function Sidebar({ desktopCollapsed, mobileOpen, onDesktopToggle,
             </svg>
           </div>
           <span className={clsx('text-lg font-bold text-white tracking-tight whitespace-nowrap', desktopCollapsed && 'lg:hidden')}>
-            SeizeWeb
+            AceCapital
           </span>
         </div>
 

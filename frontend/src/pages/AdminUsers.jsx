@@ -376,7 +376,8 @@ export default function AdminUsers() {
               const { data } = await adminAPI.testOfflineAlert();
               toast.success(`Test email terkirim ke: ${data.sentTo.join(', ')}`);
             } catch (err) {
-              const msg = err?.response?.data?.error || 'Gagal mengirim test email';
+              const msg = err?.response?.data?.error || err?.message || 'Gagal mengirim test email';
+              console.error('[testEmail] error:', err);
               toast.error(msg);
             } finally {
               setTestingEmail(false);

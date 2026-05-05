@@ -1,7 +1,7 @@
 {
-  "name": "seizeweb",
+  "name": "acecapital",
   "version": "1.0.0",
-  "description": "SeizeWeb Investor Platform",
+  "description": "AceCapital Investor Platform",
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=9.0.0"

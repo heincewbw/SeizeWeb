@@ -349,11 +349,11 @@ const testOfflineAlert = async (req, res) => {
           <tbody>${rows}</tbody>
         </table>
         <p style="color:#64748b;font-size:12px;margin-top:24px;">
-          Ini adalah test email dari SeizeWeb. Email ini dikirim pada ${new Date().toUTCString()}.
+          Ini adalah test email dari AceCapital. Email ini dikirim pada ${new Date().toUTCString()}.
         </p>
       </div>`;
 
-    const subject = '[SeizeWeb] TEST — MT4 Account Offline Alert';
+    const subject = '[AceCapital] TEST — MT4 Account Offline Alert';
     const sent = [];
     for (const admin of admins) {
       await sendMailOrThrow(admin.email, subject, html);
@@ -363,8 +363,8 @@ const testOfflineAlert = async (req, res) => {
     logger.info(`testOfflineAlert: test email sent to ${sent.join(', ')}`);
     return res.json({ success: true, sentTo: sent });
   } catch (err) {
-    logger.error('testOfflineAlert error:', err.message);
-    return res.status(500).json({ error: err.message });
+    logger.error('testOfflineAlert error:', err.message || String(err), { code: err.code, stack: err.stack });
+    return res.status(500).json({ error: err.message || String(err), code: err.code });
   }
 };
 
