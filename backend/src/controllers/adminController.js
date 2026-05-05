@@ -588,8 +588,6 @@ const generateInvoice = async (req, res) => {
 
 // POST /api/admin/invoice/send
 // Send invoice HTML email to the user
-const { sendMailOrThrow } = require('../services/emailService');
-
 const sendInvoiceEmail = async (req, res) => {
   const { invoice } = req.body;
   if (!invoice || !invoice.user?.email) {
