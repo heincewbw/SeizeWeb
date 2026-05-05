@@ -86,7 +86,7 @@ export default function Positions() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-700">
-                {['Symbol', 'Type', 'Positions', 'Total Lots', 'Avg Open Price', 'Current Price', 'Swap', 'Floating P/L'].map((h) => (
+                {['Symbol', 'Type', 'Positions', 'Total Lots', 'Avg Open Price', 'Current Price', 'Floating P/L'].map((h) => (
                   <th key={h} className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">
                     {h}
                   </th>
@@ -97,7 +97,7 @@ export default function Positions() {
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i}>
-                    {Array.from({ length: 8 }).map((_, j) => (
+                    {Array.from({ length: 7 }).map((_, j) => (
                       <td key={j} className="px-4 py-3">
                         <div className="h-4 bg-slate-700 rounded animate-pulse" />
                       </td>
@@ -106,7 +106,7 @@ export default function Positions() {
                 ))
               ) : grouped.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-16 text-slate-500">
+                  <td colSpan={7} className="text-center py-16 text-slate-500">
                     No open positions found
                   </td>
                 </tr>
@@ -121,7 +121,6 @@ export default function Positions() {
                     <td className="px-4 py-3 font-mono text-slate-300">{g.lots.toFixed(2)}</td>
                     <td className="px-4 py-3 font-mono text-slate-300">{g.avgOpenPrice.toFixed(5)}</td>
                     <td className="px-4 py-3 font-mono text-slate-100">{g.currentPrice?.toFixed(5) ?? '—'}</td>
-                    <td className="px-4 py-3 font-mono text-slate-400">{g.swap.toFixed(2)}</td>
                     <td className={`px-4 py-3 font-mono font-semibold ${g.profit >= 0 ? 'text-brand-400' : 'text-danger-400'}`}>
                       {formatCurrency(g.profit)}
                     </td>
