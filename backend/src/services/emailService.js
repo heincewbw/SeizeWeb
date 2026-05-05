@@ -2,29 +2,29 @@ const https = require('https');
 const logger = require('../config/logger');
 
 /**
- * Send email via Brevo REST API (HTTPS — works on Railway which blocks SMTP).
+ * Send email via Resend REST API (HTTPS — works on Railway, DKIM compliant).
  */
-const sendViaBrevoAPI = (to, subject, html) => {
+const sendViaResendAPI = (to, subject, html) => {
   return new Promise((resolve, reject) => {
-    const { BREVO_API_KEY } = process.env;
-    if (!BREVO_API_KEY) return reject(new Error('BREVO_API_KEY tidak di-set di environment variables'));
+    const { RESEND_API_KEY } = process.env;
+    if (!RESEND_API_KEY) return reject(new Error('RESEND_API_KEY tidak di-set di environment variables'));
 
-    const senderEmail = process.env.BREVO_SENDER_EMAIL || 'seizeace@gmail.com';
+    const senderEmail = process.env.RESEND_SENDER_EMAIL || 'onboarding@resend.dev';
 
     const payload = JSON.stringify({
-      sender: { name: 'AceCapital Alert', email: senderEmail },
-      to: [{ email: to }],
+      from: `AceCapital Alert <${senderEmail}>`,
+      to: [to],
       subject,
-      htmlContent: html,
+      html,
     });
 
     const options = {
-      hostname: 'api.brevo.com',
-      path: '/v3/smtp/email',
+      hostname: 'api.resend.com',
+      path: '/emails',
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'api-key': BREVO_API_KEY,
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Length': Buffer.byteLength(payload),
       },
     };
@@ -36,13 +36,13 @@ const sendViaBrevoAPI = (to, subject, html) => {
         if (res.statusCode >= 200 && res.statusCode < 300) {
           resolve(JSON.parse(body));
         } else {
-          reject(new Error(`Brevo API error ${res.statusCode}: ${body}`));
+          reject(new Error(`Resend API error ${res.statusCode}: ${body}`));
         }
       });
     });
 
     req.on('error', reject);
-    req.setTimeout(15000, () => { req.destroy(new Error('Brevo API request timeout')); });
+    req.setTimeout(15000, () => { req.destroy(new Error('Resend API request timeout')); });
     req.write(payload);
     req.end();
   });
@@ -53,8 +53,8 @@ const sendViaBrevoAPI = (to, subject, html) => {
  */
 const sendMail = async (to, subject, html) => {
   try {
-    const result = await sendViaBrevoAPI(to, subject, html);
-    logger.info(`emailService: sent "${subject}" → ${to} (messageId=${result.messageId})`);
+    const result = await sendViaResendAPI(to, subject, html);
+    logger.info(`emailService: sent "${subject}" → ${to} (id=${result.id})`);
   } catch (err) {
     logger.error(`emailService: sendMail error: ${err.message}`);
   }
@@ -64,7 +64,7 @@ const sendMail = async (to, subject, html) => {
  * Send an email — throws on error (for test/diagnostic use).
  */
 const sendMailOrThrow = async (to, subject, html) => {
-  const result = await sendViaBrevoAPI(to, subject, html);
+  const result = await sendViaResendAPI(to, subject, html);
   return result;
 };
 
