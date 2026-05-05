@@ -1,5 +1,26 @@
 const supabase = require('../config/supabase');
 const logger = require('../config/logger');
+const https = require('https');
+
+// Helper: fetch USD/IDR rate from frankfurter.app (free, no key required)
+const fetchUsdIdrRate = () => {
+  return new Promise((resolve) => {
+    const req = https.get('https://api.frankfurter.app/latest?from=USD&to=IDR', (res) => {
+      let body = '';
+      res.on('data', (c) => { body += c; });
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(body);
+          resolve(Math.round(json.rates?.IDR || 16000));
+        } catch {
+          resolve(16000);
+        }
+      });
+    });
+    req.on('error', () => resolve(16000));
+    req.setTimeout(8000, () => { req.destroy(); resolve(16000); });
+  });
+};
 
 // GET /api/admin/users-overview
 // Returns all users with their MT4 accounts and calculated stats
@@ -8,7 +29,7 @@ const getUsersOverview = async (req, res) => {
     // Fetch all users
     const { data: users, error: usersErr } = await supabase
       .from('users')
-      .select('id, full_name, email, role, is_active, created_at')
+      .select('id, full_name, email, role, is_active, created_at, commission_rate')
       .order('full_name', { ascending: true });
 
     if (usersErr) throw usersErr;
@@ -444,4 +465,125 @@ const syncWithdrawals = async (req, res) => {
   }
 };
 
-module.exports = { getUsersOverview, updateAccountMeta, addAccountForUser, deleteAccount, reassignAccount, testOfflineAlert, syncWithdrawals };
+// PUT /api/admin/users/:userId/commission
+// Update commission_rate for a user
+const updateCommissionRate = async (req, res) => {
+  const { userId } = req.params;
+  const { commission_rate } = req.body;
+  const rate = Number(commission_rate);
+  if (isNaN(rate) || rate < 0 || rate > 100) {
+    return res.status(400).json({ error: 'commission_rate harus antara 0 dan 100' });
+  }
+  try {
+    const { error } = await supabase
+      .from('users')
+      .update({ commission_rate: rate })
+      .eq('id', userId);
+    if (error) throw error;
+    return res.json({ success: true, commission_rate: rate });
+  } catch (err) {
+    logger.error('updateCommissionRate error:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/admin/invoice?user_id=&month=&year=
+// Generate invoice data for a user for a specific month/year
+const generateInvoice = async (req, res) => {
+  const { user_id, month, year } = req.query;
+  if (!user_id || !month || !year) {
+    return res.status(400).json({ error: 'user_id, month, year wajib diisi' });
+  }
+
+  try {
+    // Fetch user
+    const { data: user, error: userErr } = await supabase
+      .from('users')
+      .select('id, full_name, email, commission_rate')
+      .eq('id', user_id)
+      .single();
+    if (userErr || !user) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+    // Fetch accounts
+    const { data: accounts, error: accErr } = await supabase
+      .from('mt4_accounts')
+      .select('id, login, account_name, currency, initial_balance, equity')
+      .eq('user_id', user_id);
+    if (accErr) throw accErr;
+
+    // Fetch USD/IDR rate
+    const rate = await fetchUsdIdrRate();
+
+    const commissionRate = Number(user.commission_rate) || 10;
+    const monthNum = parseInt(month);
+    const yearNum = parseInt(year);
+
+    // Build month date range for display
+    const startDate = new Date(yearNum, monthNum - 1, 1);
+    const endDate = new Date(yearNum, monthNum, 0); // last day of month
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const monthName = monthNames[monthNum - 1];
+
+    const formatDate = (d) => `${String(d.getDate()).padStart(2,'0')} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+
+    const now = new Date();
+    const invoiceDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+
+    // Generate invoice ID
+    const invoiceId = `INV-AC-${yearNum}${String(monthNum).padStart(2,'0')}-${user_id.slice(-6).toUpperCase()}`;
+
+    let totalProfitUSD = 0;
+    let totalCommUSD = 0;
+
+    const rows = (accounts || []).map((acc) => {
+      const divisor = acc.currency === 'USC' ? 100 : 1;
+      const equity = (Number(acc.equity) || 0) / divisor;
+      const initialBalance = (Number(acc.initial_balance) || 0) / divisor;
+
+      // Profit rounded down to nearest $10
+      const rawProfit = Math.max(0, equity - initialBalance);
+      const profitUSD = Math.floor(rawProfit / 10) * 10;
+      const commUSD = parseFloat((profitUSD * commissionRate / 100).toFixed(2));
+
+      totalProfitUSD += profitUSD;
+      totalCommUSD += commUSD;
+
+      // Invoice number per account
+      const invoiceNum = `INV-AC-${acc.login}-${yearNum}${String(monthNum).padStart(2,'0')}`;
+
+      return {
+        invoiceNumber: invoiceNum,
+        accountName: acc.account_name || acc.login,
+        login: acc.login,
+        currency: acc.currency,
+        equity,
+        initialBalance,
+        profitUSD,
+        profitIDR: Math.round(profitUSD * rate),
+        commUSD,
+        commIDR: Math.round(commUSD * rate),
+      };
+    });
+
+    return res.json({
+      invoiceId,
+      invoiceDate,
+      period: `${monthName} ${yearNum}`,
+      startDate: formatDate(startDate),
+      endDate: formatDate(endDate),
+      user: { full_name: user.full_name, email: user.email },
+      commissionRate,
+      rate,
+      rows,
+      totalProfitUSD: parseFloat(totalProfitUSD.toFixed(2)),
+      totalProfitIDR: Math.round(totalProfitUSD * rate),
+      totalCommUSD: parseFloat(totalCommUSD.toFixed(2)),
+      totalCommIDR: Math.round(totalCommUSD * rate),
+    });
+  } catch (err) {
+    logger.error(`generateInvoice error: ${err.message}`);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = { getUsersOverview, updateAccountMeta, addAccountForUser, deleteAccount, reassignAccount, testOfflineAlert, syncWithdrawals, updateCommissionRate, generateInvoice };

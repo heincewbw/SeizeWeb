@@ -4,9 +4,10 @@ import useAuthStore from '@/store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '@/utils/format';
-import { PencilIcon, CheckIcon, XMarkIcon, PlusIcon, KeyIcon, ClipboardIcon, ClipboardDocumentCheckIcon, TrashIcon, SignalSlashIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, CheckIcon, XMarkIcon, PlusIcon, KeyIcon, ClipboardIcon, ClipboardDocumentCheckIcon, TrashIcon, SignalSlashIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import AdminAddAccountModal from '@/components/Accounts/AdminAddAccountModal';
+import InvoiceModal from '@/components/Accounts/InvoiceModal';
 
 function DDCell({ value }) {
   const v = Number(value) || 0;
@@ -67,6 +68,7 @@ export default function AdminUsers() {
   const [reassignUserId, setReassignUserId] = useState('');
   const [reassigning, setReassigning] = useState(false);
   const [testingEmail, setTestingEmail] = useState(false);
+  const [invoiceModal, setInvoiceModal] = useState(null); // user object or null
 
   const openDetail = (a) => {
     setDetailModal(a);
@@ -271,8 +273,21 @@ export default function AdminUsers() {
     { initialBalance: 0, balance: 0, equity: 0, profit: 0 }
   );
 
+  const handleUpdateCommission = async (userId, rate) => {
+    try {
+      await adminAPI.updateCommissionRate(userId, rate);
+      setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, commission_rate: Number(rate) } : u));
+      toast.success('Commission rate diperbarui');
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Gagal menyimpan');
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {invoiceModal && (
+        <InvoiceModal user={invoiceModal} onClose={() => setInvoiceModal(null)} />
+      )}
       {addModal && (
         <AdminAddAccountModal
           user={addModal}
@@ -431,12 +446,29 @@ export default function AdminUsers() {
                 </div>
                 <div className="flex items-center gap-4">
                   <button
+                    onClick={(e) => { e.stopPropagation(); setInvoiceModal(u); }}
+                    className="flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 hover:border-emerald-400/50 rounded-lg px-2.5 py-1 transition-colors"
+                  >
+                    <DocumentTextIcon className="w-3.5 h-3.5" />
+                    Invoice
+                  </button>
+                  <button
                     onClick={(e) => { e.stopPropagation(); setAddModal(u); }}
                     className="flex items-center gap-1 text-xs text-brand-400 hover:text-brand-300 border border-brand-500/30 hover:border-brand-400/50 rounded-lg px-2.5 py-1 transition-colors"
                   >
                     <PlusIcon className="w-3.5 h-3.5" />
                     Tambah Akun
                   </button>
+                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-xs text-slate-500">Komisi</span>
+                    <EditableCell
+                      value={u.commission_rate ?? 10}
+                      type="number"
+                      onSave={(v) => handleUpdateCommission(u.id, v)}
+                      prefix=""
+                    />
+                    <span className="text-xs text-slate-500">%</span>
+                  </div>
                   <span className="text-xs text-slate-500">{u.accounts.length} akun</span>
                   <span className={clsx(
                     'text-xs px-2 py-0.5 rounded-full border',

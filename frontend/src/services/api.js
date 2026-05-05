@@ -85,4 +85,6 @@ export const adminAPI = {
   reassignAccount: (id, userId) => api.put(`/api/admin/accounts/${id}/reassign`, { user_id: userId }),
   disconnectAccount: (id) => api.post(`/api/accounts/${id}/disconnect`),
   testOfflineAlert: () => api.post('/api/admin/test-offline-alert'),
+  updateCommissionRate: (userId, rate) => api.put(`/api/admin/users/${userId}/commission`, { commission_rate: rate }),
+  generateInvoice: (userId, month, year) => api.get('/api/admin/invoice', { params: { user_id: userId, month, year } }),
 };
