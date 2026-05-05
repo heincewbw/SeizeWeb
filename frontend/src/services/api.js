@@ -87,4 +87,5 @@ export const adminAPI = {
   testOfflineAlert: () => api.post('/api/admin/test-offline-alert'),
   updateCommissionRate: (userId, rate) => api.put(`/api/admin/users/${userId}/commission`, { commission_rate: rate }),
   generateInvoice: (userId, month, year) => api.get('/api/admin/invoice', { params: { user_id: userId, month, year } }),
+  sendInvoiceEmail: (invoice) => api.post('/api/admin/invoice/send', { invoice }),
 };

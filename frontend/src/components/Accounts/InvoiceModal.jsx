@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { XMarkIcon, PrinterIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PrinterIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 import { adminAPI } from '@/services/api';
 import toast from 'react-hot-toast';
 
@@ -30,6 +30,7 @@ export default function InvoiceModal({ user, onClose }) {
   const [year, setYear] = useState(now.getFullYear());
   const [loading, setLoading] = useState(false);
   const [invoice, setInvoice] = useState(null);
+  const [sending, setSending] = useState(false);
   const printRef = useRef(null);
 
   const handleGenerate = async () => {
@@ -41,6 +42,19 @@ export default function InvoiceModal({ user, onClose }) {
       toast.error(err?.response?.data?.error || 'Gagal generate invoice');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSendEmail = async () => {
+    if (!invoice) return;
+    setSending(true);
+    try {
+      const { data } = await adminAPI.sendInvoiceEmail(invoice);
+      toast.success(`Invoice terkirim ke ${data.sentTo}`);
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Gagal mengirim email');
+    } finally {
+      setSending(false);
     }
   };
 
@@ -143,6 +157,16 @@ export default function InvoiceModal({ user, onClose }) {
             >
               <PrinterIcon className="w-4 h-4" />
               Print / Save PDF
+            </button>
+          )}
+          {invoice && (
+            <button
+              onClick={handleSendEmail}
+              disabled={sending}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-sm rounded-lg transition-colors"
+            >
+              <EnvelopeIcon className="w-4 h-4" />
+              {sending ? 'Mengirim...' : 'Kirim ke Email User'}
             </button>
           )}
         </div>

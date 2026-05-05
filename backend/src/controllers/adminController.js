@@ -586,4 +586,94 @@ const generateInvoice = async (req, res) => {
   }
 };
 
-module.exports = { getUsersOverview, updateAccountMeta, addAccountForUser, deleteAccount, reassignAccount, testOfflineAlert, syncWithdrawals, updateCommissionRate, generateInvoice };
+// POST /api/admin/invoice/send
+// Send invoice HTML email to the user
+const { sendMailOrThrow } = require('../services/emailService');
+
+const sendInvoiceEmail = async (req, res) => {
+  const { invoice } = req.body;
+  if (!invoice || !invoice.user?.email) {
+    return res.status(400).json({ error: 'Data invoice tidak valid' });
+  }
+
+  const fmt = (n) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+  const fmtRp = (n) => new Intl.NumberFormat('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+
+  const rowsHtml = (invoice.rows || []).map((row, i) => `
+    <tr style="background:${i % 2 === 1 ? '#f7f9fc' : '#fff'}">
+      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;font-family:monospace">${row.invoiceNumber}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;font-weight:500">${row.accountName}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:right">$ ${fmt(row.profitUSD)}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:right">Rp ${fmtRp(row.profitIDR)}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:right">$ ${fmt(row.commUSD)}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:12px;text-align:right">Rp ${fmtRp(row.commIDR)}</td>
+    </tr>`).join('');
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"/></head>
+<body style="font-family:Arial,sans-serif;font-size:13px;color:#1a1a1a;background:#f1f5f9;padding:32px;margin:0">
+  <div style="max-width:780px;margin:0 auto;background:#fff;border-radius:10px;padding:36px;box-shadow:0 2px 12px rgba(0,0,0,0.08)">
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px">
+      <div>
+        <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em">Agent</div>
+        <div style="font-size:16px;font-weight:bold;margin-top:4px">${invoice.user.full_name}</div>
+        <div style="font-size:12px;color:#555;margin-top:2px">${invoice.user.email}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:0.05em">Invoice ID</div>
+        <div style="font-size:12px;font-weight:bold;margin-top:2px">${invoice.invoiceId}</div>
+        <table style="margin-left:auto;margin-top:10px;font-size:12px;color:#444;border-collapse:collapse">
+          <tr><td style="padding:2px 8px;color:#888">Invoice Date</td><td style="padding:2px 8px;font-weight:500">${invoice.invoiceDate}</td></tr>
+          <tr><td style="padding:2px 8px;color:#888">Start Date</td><td style="padding:2px 8px;font-weight:500">${invoice.startDate}</td></tr>
+          <tr><td style="padding:2px 8px;color:#888">End Date</td><td style="padding:2px 8px;font-weight:500">${invoice.endDate}</td></tr>
+          <tr><td style="padding:2px 8px;color:#888">Period</td><td style="padding:2px 8px;font-weight:500">${invoice.period}</td></tr>
+        </table>
+      </div>
+    </div>
+    <!-- Table -->
+    <table style="width:100%;border-collapse:collapse;margin-bottom:24px">
+      <thead>
+        <tr style="background:#1e3a5f;color:#fff">
+          <th style="padding:9px 12px;text-align:left;font-size:12px;font-weight:600">Invoice Number</th>
+          <th style="padding:9px 12px;text-align:left;font-size:12px;font-weight:600">Account Name</th>
+          <th style="padding:9px 12px;text-align:right;font-size:12px;font-weight:600">Total Profit($)</th>
+          <th style="padding:9px 12px;text-align:right;font-size:12px;font-weight:600">Total Profit(Rp)</th>
+          <th style="padding:9px 12px;text-align:right;font-size:12px;font-weight:600">Total Comm(${invoice.commissionRate}%)($)</th>
+          <th style="padding:9px 12px;text-align:right;font-size:12px;font-weight:600">Total Comm(Rp)</th>
+        </tr>
+      </thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <!-- Totals -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:28px">
+      <table style="font-size:12px;min-width:340px;border-collapse:collapse">
+        <tr><td style="padding:4px 10px;color:#666">Total Profit($)</td><td style="padding:4px 10px;text-align:right;font-weight:600">$ ${fmt(invoice.totalProfitUSD)}</td></tr>
+        <tr><td style="padding:4px 10px;color:#666">Rate (Rp)</td><td style="padding:4px 10px;text-align:right;font-weight:600">Rp ${fmtRp(invoice.rate)}</td></tr>
+        <tr><td style="padding:4px 10px;color:#666">Total Profit (Rp)</td><td style="padding:4px 10px;text-align:right;font-weight:600">Rp ${fmtRp(invoice.totalProfitIDR)}</td></tr>
+        <tr style="border-top:1px solid #e5e7eb"><td style="padding:8px 10px 4px;color:#666">Total Commission Fee ($)</td><td style="padding:8px 10px 4px;text-align:right;font-weight:600">$ ${fmt(invoice.totalCommUSD)}</td></tr>
+        <tr><td style="padding:4px 10px;color:#666">Total Commission Fee (Rp)</td><td style="padding:4px 10px;text-align:right;font-weight:600">Rp ${fmtRp(invoice.totalCommIDR)}</td></tr>
+      </table>
+    </div>
+    <!-- Footer -->
+    <div style="border-top:1px solid #e5e7eb;padding-top:16px">
+      <p style="font-size:11px;color:#888">Thank you for your business. If you have any questions or if this invoice is incorrect, please contact us at <a href="mailto:support@acecapital.app" style="color:#2563eb">support@acecapital.app</a></p>
+      <p style="font-size:11px;color:#888;margin-top:6px">Best regards,</p>
+      <div style="font-size:22px;font-weight:900;letter-spacing:-0.5px;color:#1e3a5f;margin-top:10px">ACE<span style="color:#2563eb">CAPITAL</span></div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  try {
+    await sendMailOrThrow(invoice.user.email, `[AceCapital] Invoice ${invoice.period} — ${invoice.invoiceId}`, html);
+    logger.info(`sendInvoiceEmail: sent invoice ${invoice.invoiceId} to ${invoice.user.email}`);
+    return res.json({ success: true, sentTo: invoice.user.email });
+  } catch (err) {
+    logger.error(`sendInvoiceEmail error: ${err.message}`);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = { getUsersOverview, updateAccountMeta, addAccountForUser, deleteAccount, reassignAccount, testOfflineAlert, syncWithdrawals, updateCommissionRate, generateInvoice, sendInvoiceEmail };
