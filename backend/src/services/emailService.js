@@ -6,11 +6,13 @@ const logger = require('../config/logger');
  */
 const sendViaBrevoAPI = (to, subject, html) => {
   return new Promise((resolve, reject) => {
-    const { BREVO_API_KEY, SMTP_USER } = process.env;
+    const { BREVO_API_KEY } = process.env;
     if (!BREVO_API_KEY) return reject(new Error('BREVO_API_KEY tidak di-set di environment variables'));
 
+    const senderEmail = process.env.BREVO_SENDER_EMAIL || 'seizeace@gmail.com';
+
     const payload = JSON.stringify({
-      sender: { name: 'AceCapital Alert', email: SMTP_USER || 'noreply@acecapital.app' },
+      sender: { name: 'AceCapital Alert', email: senderEmail },
       to: [{ email: to }],
       subject,
       htmlContent: html,
