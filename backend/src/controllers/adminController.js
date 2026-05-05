@@ -368,4 +368,72 @@ const testOfflineAlert = async (req, res) => {
   }
 };
 
-module.exports = { getUsersOverview, updateAccountMeta, addAccountForUser, deleteAccount, reassignAccount, testOfflineAlert };
+/**
+ * POST /api/admin/sync-withdrawals
+ * Backfill withdrawals from trade_history without restarting the EA.
+ * Body: { account_id? } — omit to sync all accounts.
+ */
+const syncWithdrawals = async (req, res) => {
+  try {
+    const { account_id } = req.body;
+
+    // Fetch BALANCE entries with negative profit from trade_history
+    let query = supabase
+      .from('trade_history')
+      .select('mt4_account_id, user_id, ticket, profit, comment, close_time, mt4_accounts(currency)')
+      .eq('type', 'BALANCE')
+      .lt('profit', 0);
+
+    if (account_id) query = query.eq('mt4_account_id', account_id);
+
+    const { data: balanceRows, error: fetchErr } = await query;
+    if (fetchErr) throw fetchErr;
+
+    if (!balanceRows || balanceRows.length === 0) {
+      return res.json({ success: true, inserted: 0, message: 'No BALANCE withdrawal entries found in trade_history' });
+    }
+
+    // Get all already-tracked tickets
+    const accountIds = [...new Set(balanceRows.map((r) => r.mt4_account_id))];
+    const { data: existing } = await supabase
+      .from('withdrawals')
+      .select('mt4_account_id, ticket')
+      .in('mt4_account_id', accountIds);
+
+    const existingSet = new Set((existing || []).map((r) => `${r.mt4_account_id}:${r.ticket}`));
+
+    const detectType = (comment) => {
+      const c = (comment || '').toUpperCase();
+      return c.includes('-INT-') ? 'transfer' : 'withdrawal';
+    };
+
+    const newRows = balanceRows
+      .filter((h) => !existingSet.has(`${h.mt4_account_id}:${h.ticket}`))
+      .map((h) => ({
+        mt4_account_id: h.mt4_account_id,
+        user_id: h.user_id,
+        ticket: h.ticket,
+        amount: Math.abs(Number(h.profit)),
+        currency: h.mt4_accounts?.currency || 'USD',
+        type: detectType(h.comment),
+        comment: h.comment || '',
+        close_time: h.close_time,
+        status: 'detected',
+      }));
+
+    if (newRows.length === 0) {
+      return res.json({ success: true, inserted: 0, message: 'All withdrawals already synced' });
+    }
+
+    const { error: insertErr } = await supabase.from('withdrawals').insert(newRows);
+    if (insertErr) throw insertErr;
+
+    logger.info(`syncWithdrawals: inserted ${newRows.length} withdrawal(s)${account_id ? ` for account ${account_id}` : ''}`);
+    return res.json({ success: true, inserted: newRows.length });
+  } catch (err) {
+    logger.error('syncWithdrawals error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+};
+
+module.exports = { getUsersOverview, updateAccountMeta, addAccountForUser, deleteAccount, reassignAccount, testOfflineAlert, syncWithdrawals };

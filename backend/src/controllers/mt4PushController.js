@@ -281,21 +281,21 @@ const receiveMT4Push = async (req, res) => {
         }));
 
       if (withdrawalRows.length > 0) {
-        const { error: wdErr } = await supabase
+        // Check which tickets already exist (avoid relying on partial-index conflict target
+        // which PostgreSQL won't match via plain ON CONFLICT (col1,col2) without the WHERE predicate)
+        const { data: existing } = await supabase
           .from('withdrawals')
-          .upsert(withdrawalRows, { onConflict: 'mt4_account_id,ticket', ignoreDuplicates: true });
-        if (wdErr) {
-          // If new columns (ticket, type, comment, close_time) don't exist yet, fall back to safe insert
-          if (wdErr.code === '42703' || wdErr.message?.includes('does not exist')) {
-            logger.warn('mt4Push: withdrawals missing columns, using fallback insert. Run fix_withdrawals_columns.sql migration.');
-            const safeRows = withdrawalRows.map(({ ticket, type, comment, close_time, ...rest }) => rest);
-            const { error: wdErr2 } = await supabase.from('withdrawals').upsert(safeRows, { ignoreDuplicates: true });
-            if (wdErr2) logger.error('mt4Push upsertWithdrawals fallback error:', wdErr2);
-          } else {
-            logger.error('mt4Push upsertWithdrawals error:', wdErr);
-          }
-        } else {
-          logger.info(`mt4Push: detected ${withdrawalRows.length} withdrawal(s) for account ${account.id}`);
+          .select('ticket')
+          .eq('mt4_account_id', account.id)
+          .in('ticket', withdrawalRows.map((r) => r.ticket));
+
+        const existingTickets = new Set((existing || []).map((r) => r.ticket));
+        const newRows = withdrawalRows.filter((r) => !existingTickets.has(r.ticket));
+
+        if (newRows.length > 0) {
+          const { error: wdErr } = await supabase.from('withdrawals').insert(newRows);
+          if (wdErr) logger.error('mt4Push insertWithdrawals error:', wdErr);
+          else logger.info(`mt4Push: inserted ${newRows.length} new withdrawal(s) for account ${account.id}`);
         }
       }
     }
