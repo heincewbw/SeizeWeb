@@ -2,10 +2,10 @@ const supabase = require('../config/supabase');
 const logger = require('../config/logger');
 const https = require('https');
 
-// Helper: fetch USD/IDR rate from frankfurter.app (free, no key required)
+// Helper: fetch USD/IDR rate from open.er-api.com (free, no key required, supports IDR)
 const fetchUsdIdrRate = () => {
   return new Promise((resolve) => {
-    const req = https.get('https://api.frankfurter.app/latest?from=USD&to=IDR', (res) => {
+    const req = https.get('https://open.er-api.com/v6/latest/USD', (res) => {
       let body = '';
       res.on('data', (c) => { body += c; });
       res.on('end', () => {
