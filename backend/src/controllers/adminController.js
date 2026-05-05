@@ -363,8 +363,9 @@ const testOfflineAlert = async (req, res) => {
     logger.info(`testOfflineAlert: test email sent to ${sent.join(', ')}`);
     return res.json({ success: true, sentTo: sent });
   } catch (err) {
-    logger.error('testOfflineAlert error:', err.message || String(err), { code: err.code, stack: err.stack });
-    return res.status(500).json({ error: err.message || String(err), code: err.code });
+    const errMsg = err.message || String(err) || 'unknown error';
+    logger.error(`testOfflineAlert error: ${errMsg} | code=${err.code} | stack=${err.stack}`);
+    return res.status(500).json({ error: errMsg, code: err.code });
   }
 };
 
