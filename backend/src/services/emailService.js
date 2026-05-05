@@ -22,11 +22,13 @@ const getTransporter = () => {
     return null;
   }
 
+  const port = parseInt(SMTP_PORT) || 465;
   transporter = nodemailer.createTransport({
     host: SMTP_HOST,
-    port: parseInt(SMTP_PORT) || 587,
-    secure: parseInt(SMTP_PORT) === 465,
+    port,
+    secure: port === 465,
     auth: { user: SMTP_USER, pass: SMTP_PASS },
+    tls: { rejectUnauthorized: false },
   });
 
   return transporter;
@@ -63,11 +65,13 @@ const sendMailOrThrow = async (to, subject, html) => {
   const { SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_PORT } = process.env;
   if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) throw new Error(`SMTP not configured (SMTP_HOST=${SMTP_HOST}, SMTP_USER=${SMTP_USER})`);
 
+  const port2 = parseInt(SMTP_PORT) || 465;
   const t = nodemailer.createTransport({
     host: SMTP_HOST,
-    port: parseInt(SMTP_PORT) || 587,
-    secure: parseInt(SMTP_PORT) === 465,
+    port: port2,
+    secure: port2 === 465,
     auth: { user: SMTP_USER, pass: SMTP_PASS },
+    tls: { rejectUnauthorized: false },
   });
 
   const info = await t.sendMail({
