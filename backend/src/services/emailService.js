@@ -74,8 +74,12 @@ const sendMailOrThrow = async (to, subject, html) => {
     requireTLS: port2 !== 465,
     auth: { user: SMTP_USER, pass: SMTP_PASS },
     tls: { rejectUnauthorized: false },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 15000,
   });
 
+  await t.verify();
   const info = await t.sendMail({
     from: `"AceCapital Alert" <${SMTP_USER}>`,
     to,
