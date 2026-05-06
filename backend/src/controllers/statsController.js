@@ -238,18 +238,26 @@ const getMonthlyGain = async (req, res) => {
 
     const monthly = Object.entries(monthMap)
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, snaps]) => {
-        const first = snaps[0].balance;
-        const last = snaps[snaps.length - 1].balance;
-        const gainPct = first > 0 ? ((last - first) / first) * 100 : 0;
+      .map(([key, snaps], idx, arr) => {
+        // Use last snapshot of previous month as start balance (more accurate)
+        // Fall back to first snapshot of current month if no previous month exists
+        let startBalance;
+        if (idx > 0) {
+          const prevSnaps = arr[idx - 1][1];
+          startBalance = prevSnaps[prevSnaps.length - 1].balance;
+        } else {
+          startBalance = snaps[0].balance;
+        }
+        const endBalance = snaps[snaps.length - 1].balance;
+        const gainPct = startBalance > 0 ? ((endBalance - startBalance) / startBalance) * 100 : 0;
         const [year, month] = key.split('-');
         return {
           key,
           year: parseInt(year),
           month: parseInt(month),
           gainPct: parseFloat(gainPct.toFixed(2)),
-          startBalance: parseFloat(first.toFixed(2)),
-          endBalance: parseFloat(last.toFixed(2)),
+          startBalance: parseFloat(startBalance.toFixed(2)),
+          endBalance: parseFloat(endBalance.toFixed(2)),
         };
       });
 
