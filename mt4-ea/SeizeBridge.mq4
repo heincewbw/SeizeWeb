@@ -180,6 +180,13 @@ void CheckForUpdate()
       return;
    }
 
+   // Only auto-update when server has a STRICTLY NEWER version (avoid downgrade)
+   if(StringCompare(serverVersion, EA_VERSION) <= 0)
+   {
+      Print("[SeizeBridge] Versi server (v", serverVersion, ") tidak lebih baru dari v", EA_VERSION, ". Skip update.");
+      return;
+   }
+
    Print("[SeizeBridge] Update tersedia: v", EA_VERSION, " -> v", serverVersion, ". Mengunduh...");
 
    // Parse download URL
