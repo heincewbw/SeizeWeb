@@ -129,7 +129,6 @@ export default function Withdrawals() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Ticket</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Tipe</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Jumlah</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Komentar</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Waktu</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Status</th>
                 {isAdmin && <th className="px-4 py-3" />}
@@ -137,10 +136,10 @@ export default function Withdrawals() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={isAdmin ? 9 : 7} className="text-center py-10 text-slate-500">Memuat...</td></tr>
+                <tr><td colSpan={isAdmin ? 8 : 6} className="text-center py-10 text-slate-500">Memuat...</td></tr>
               ) : withdrawals.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin ? 9 : 7} className="text-center py-10 text-slate-500">
+                  <td colSpan={isAdmin ? 8 : 6} className="text-center py-10 text-slate-500">
                     Belum ada withdrawal yang terdeteksi dari MT4
                   </td>
                 </tr>
@@ -165,9 +164,6 @@ export default function Withdrawals() {
                     </td>
                     <td className="px-4 py-3 font-mono font-semibold text-danger-400">
                       -{formatCurrency(w.amount, w.mt4_accounts?.currency || w.currency)}
-                    </td>
-                    <td className="px-4 py-3 text-slate-400 text-xs max-w-[180px] truncate" title={w.comment || w.notes || w.bank_name}>
-                      {w.comment || w.notes || w.bank_name || '—'}
                     </td>
                     <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">
                       {formatDate(w.close_time || w.created_at)}

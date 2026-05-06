@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import StatCard from '@/components/Dashboard/StatCard';
 import EquityChart from '@/components/Dashboard/EquityChart';
 import AccountSelector from '@/components/Dashboard/AccountSelector';
+import PortfolioShareChart from '@/components/Dashboard/PortfolioShareChart';
 import {
   BanknotesIcon,
   ArrowTrendingUpIcon,
@@ -16,6 +17,7 @@ import { formatCurrency, formatPercent } from '@/utils/format';
 export default function Dashboard() {
   const { accounts, setAccounts, selectedAccountId, setSelectedAccountId, summary, setSummary } = useDashboardStore();
   const [equityChart, setEquityChart] = useState([]);
+  const [portfolioShare, setPortfolioShare] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,15 +27,17 @@ export default function Dashboard() {
   const loadDashboard = async () => {
     setLoading(true);
     try {
-      const [accountsRes, summaryRes, chartRes] = await Promise.all([
+      const [accountsRes, summaryRes, chartRes, shareRes] = await Promise.all([
         accountsAPI.getAll(),
         statsAPI.getSummary(selectedAccountId),
         statsAPI.getEquityChart({ account_id: selectedAccountId, period: '30d' }),
+        statsAPI.getPortfolioShare(),
       ]);
 
       setAccounts(accountsRes.data.accounts);
       setSummary(summaryRes.data);
       setEquityChart(chartRes.data.chart);
+      setPortfolioShare(shareRes.data);
     } catch (err) {
       toast.error('Failed to load dashboard data');
     } finally {
@@ -100,26 +104,29 @@ export default function Dashboard() {
         <div className="xl:col-span-2">
           <EquityChart data={equityChart} loading={loading} />
         </div>
-        <div>
-          <div className="card h-full">
-            <h3 className="font-semibold text-slate-200 mb-4 text-sm uppercase tracking-wide">Trade Stats</h3>
-            <div className="space-y-3">
-              {[
-                { label: 'Total Trades', value: tradeStats?.totalTrades ?? '—' },
-                { label: 'Winning Trades', value: tradeStats?.winningTrades ?? '—', color: 'text-brand-400' },
-                { label: 'Losing Trades', value: tradeStats?.losingTrades ?? '—', color: 'text-danger-400' },
-                { label: 'Gross Profit', value: formatCurrency(tradeStats?.grossProfit), color: 'text-brand-400' },
-                { label: 'Gross Loss', value: formatCurrency(tradeStats?.grossLoss ? -tradeStats.grossLoss : 0), color: 'text-danger-400' },
-                { label: 'Net P&L', value: formatCurrency(tradeStats?.totalPnl), color: tradeStats?.totalPnl >= 0 ? 'text-brand-400' : 'text-danger-400' },
-                { label: 'Connected Accounts', value: stats?.totalAccounts ?? '—' },
-              ].map(({ label, value, color }) => (
-                <div key={label} className="flex items-center justify-between py-1.5 border-b border-slate-700/50 last:border-0">
-                  <span className="text-sm text-slate-400">{label}</span>
-                  <span className={`text-sm font-medium font-mono ${color || 'text-slate-100'}`}>{loading ? '...' : value}</span>
-                </div>
-              ))}
+        <div className="flex flex-col gap-6">
+          <PortfolioShareChart data={portfolioShare} loading={loading} />
+        </div>
+      </div>
+
+      {/* Trade Stats Row */}
+      <div className="card">
+        <h3 className="font-semibold text-slate-200 mb-4 text-sm uppercase tracking-wide">Trade Stats</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {[
+            { label: 'Total Trades', value: tradeStats?.totalTrades ?? '—' },
+            { label: 'Winning Trades', value: tradeStats?.winningTrades ?? '—', color: 'text-brand-400' },
+            { label: 'Losing Trades', value: tradeStats?.losingTrades ?? '—', color: 'text-danger-400' },
+            { label: 'Gross Profit', value: formatCurrency(tradeStats?.grossProfit), color: 'text-brand-400' },
+            { label: 'Gross Loss', value: formatCurrency(tradeStats?.grossLoss ? -tradeStats.grossLoss : 0), color: 'text-danger-400' },
+            { label: 'Net P&L', value: formatCurrency(tradeStats?.totalPnl), color: tradeStats?.totalPnl >= 0 ? 'text-brand-400' : 'text-danger-400' },
+            { label: 'Connected Accounts', value: stats?.totalAccounts ?? '—' },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="flex flex-col gap-0.5">
+              <span className="text-xs text-slate-500">{label}</span>
+              <span className={`text-sm font-medium font-mono ${color || 'text-slate-100'}`}>{loading ? '...' : value}</span>
             </div>
-          </div>
+          ))}
         </div>
       </div>
 

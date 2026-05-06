@@ -16,10 +16,10 @@
 //|  Isi BridgeToken dari AceCapital UI > MT4 Accounts > hover > EA btn |
 //+------------------------------------------------------------------+
 #property copyright "AceCapital"
-#property version   "3.0"
+#property version   "3.1"
 #property strict
 
-#define EA_VERSION "3.0"
+#define EA_VERSION "3.1"
 
 // Windows API untuk eksekusi batch file (self-update)
 #import "shell32.dll"
@@ -27,14 +27,11 @@ int ShellExecuteW(int hwnd, string lpOperation, string lpFile, string lpParamete
 #import
 
 // Input parameters
-string LogFileName = "account_status.txt";
-input int IntervalMinutes = 15;
 double OP_BALANCE;
-datetime lastLogTime = 0;
 bool inProgress = false;
 
 
-input string  ServerUrl    = "https://seizeweb-production.up.railway.app"; // Backend server URL
+input string  ServerUrl    = "https://acecapital.id"; // Backend server URL
 input string  EaSecret     = "12b2d69d4c2cc90248664926b04579872cb28a60f5cd8223";                       // EA_SECRET dari Railway env (untuk auto-register)
 input string  BridgeToken  = "";                       // Bridge token manual (kosongkan jika pakai EaSecret)
 input int     PushInterval = 300;                      // Push interval in seconds
@@ -276,13 +273,6 @@ void OnTimer()
    if(inProgress) return; // guard sederhana
    inProgress = true;
 
-   // Panggil LogAccountStatus sesuai IntervalMinutes (bukan setiap timer tick)
-   if(TimeCurrent() - lastLogTime >= IntervalMinutes * 60)
-   {
-      LogAccountStatus();
-      lastLogTime = TimeCurrent();
-   }
-
    inProgress = false;
    gLastPush = 0;  // reset agar OnTick langsung push
    OnTick();
@@ -350,52 +340,6 @@ void OnTick()
 
    SendPush(payload);
 }
-
-void LogAccountStatus() {
-   double balance = AccountBalance();
-   double equity  = AccountEquity();
-   double totalWithdrawals = 0;
-   datetime lastWithdrawDate = 0;
-
-   GetWithdrawalStats(totalWithdrawals, lastWithdrawDate);
-
-   int fileHandle = FileOpen(LogFileName, FILE_WRITE | FILE_TXT);
-   if (fileHandle != INVALID_HANDLE) {
-      FileWrite(fileHandle, "Account Status Log");
-      FileWrite(fileHandle, "-------------------");
-      FileWrite(fileHandle, AccountNumber());      
-      FileWrite(fileHandle, DoubleToString(balance, 2));
-      FileWrite(fileHandle, DoubleToString(equity, 2));
-      FileWrite(fileHandle, DoubleToString(totalWithdrawals, 2));
-      FileWrite(fileHandle, lastWithdrawDate > 0 ? TimeToString(lastWithdrawDate, TIME_DATE | TIME_MINUTES) : "N/A");
-      //FileWrite(fileHandle, "Timestamp: ", TimeToString(TimeCurrent(), TIME_DATE | TIME_MINUTES));
-      FileClose(fileHandle);
-   } else {
-      Print("Error opening file: ", LogFileName);
-   }
-}
-
-//+------------------------------------------------------------------+
-//| Function: GetWithdrawalStats                                    |
-//| Description: Sums withdrawals and finds latest withdrawal date  |
-//+------------------------------------------------------------------+
-void GetWithdrawalStats(double &totalWithdraw, datetime &lastDate) {
-   totalWithdraw = 0;
-   lastDate = 0;
-
-   int totalOrders = OrdersHistoryTotal();
-   for (int i = 0; i < totalOrders; i++) {
-      if (OrderSelect(i, SELECT_BY_POS, MODE_HISTORY)) {
-         if (OrderType() == ORDER_TYPE_BALANCE && OrderProfit() < 0) {
-            totalWithdraw += MathAbs(OrderProfit());
-            if (OrderCloseTime() > lastDate) {
-               lastDate = OrderCloseTime();
-            }
-         }
-      }
-   }
-}
-
 
 //--- Kirim HTTP POST ke backend
 void SendPush(string payload)

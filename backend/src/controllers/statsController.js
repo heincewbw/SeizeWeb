@@ -260,4 +260,41 @@ const getMonthlyGain = async (req, res) => {
   }
 };
 
-module.exports = { getSummary, getEquityChart, getSymbolBreakdown, getMonthlyGain };
+// GET /api/stats/portfolio-share
+// Returns current user's total balance vs all users' combined balance
+const getPortfolioShare = async (req, res) => {
+  try {
+    const normalize = (a) => ((Number(a.balance) || 0) / (a.currency === 'USC' ? 100 : 1));
+
+    const [userRes, allRes] = await Promise.all([
+      supabase
+        .from('mt4_accounts')
+        .select('balance, currency')
+        .eq('user_id', req.user.id)
+        .eq('is_connected', true),
+      supabase
+        .from('mt4_accounts')
+        .select('balance, currency, user_id')
+        .eq('is_connected', true),
+    ]);
+
+    if (userRes.error) throw userRes.error;
+    if (allRes.error) throw allRes.error;
+
+    const userBalance = (userRes.data || []).reduce((sum, a) => sum + normalize(a), 0);
+    const totalBalance = (allRes.data || []).reduce((sum, a) => sum + normalize(a), 0);
+    const otherBalance = totalBalance - userBalance;
+
+    const percentage = totalBalance > 0 ? parseFloat(((userBalance / totalBalance) * 100).toFixed(2)) : 0;
+
+    // Count distinct users
+    const uniqueUsers = new Set((allRes.data || []).map((a) => a.user_id)).size;
+
+    return res.json({ userBalance, otherBalance, totalBalance, percentage, totalUsers: uniqueUsers });
+  } catch (err) {
+    logger.error('GetPortfolioShare exception:', err);
+    return res.status(500).json({ error: 'Failed to fetch portfolio share' });
+  }
+};
+
+module.exports = { getSummary, getEquityChart, getSymbolBreakdown, getMonthlyGain, getPortfolioShare };
