@@ -195,73 +195,127 @@ const getSymbolBreakdown = async (req, res) => {
 };
 
 // GET /api/stats/monthly-gain
+// Monthly gain = (endBalance + withdrawalsInMonth - startBalance) / initialBalance * 100
+// where startBalance = end of previous month (or initial_balance if first month)
 const getMonthlyGain = async (req, res) => {
   const { account_id } = req.query;
 
   try {
-    let query = supabase
+    // 1. Fetch accounts (need initial_balance + currency)
+    let accountsQuery = supabase
+      .from('mt4_accounts')
+      .select('id, initial_balance, currency')
+      .eq('user_id', req.user.id);
+    if (account_id) accountsQuery = accountsQuery.eq('id', account_id);
+
+    const { data: accounts, error: accErr } = await accountsQuery;
+    if (accErr) throw accErr;
+    if (!accounts || accounts.length === 0) return res.json({ monthly: [] });
+
+    const accountIds = accounts.map((a) => a.id);
+    const accMap = Object.fromEntries(accounts.map((a) => [a.id, a]));
+    const div = (id) => (accMap[id]?.currency === 'USC' ? 100 : 1);
+
+    // Total initial balance (sum across selected accounts, normalized)
+    const totalInitial = accounts.reduce(
+      (sum, a) => sum + (Number(a.initial_balance) || 0) / (a.currency === 'USC' ? 100 : 1),
+      0
+    );
+
+    // 2. Fetch snapshots
+    let snapQuery = supabase
       .from('equity_snapshots')
-      .select('balance, equity, created_at, mt4_account_id, mt4_accounts(currency)')
+      .select('balance, created_at, mt4_account_id')
       .eq('user_id', req.user.id)
       .order('created_at', { ascending: true });
+    if (account_id) snapQuery = snapQuery.eq('mt4_account_id', account_id);
 
-    if (account_id) query = query.eq('mt4_account_id', account_id);
+    const { data: snapshots, error: snapErr } = await snapQuery;
+    if (snapErr) throw snapErr;
 
-    const { data: snapshots, error } = await query;
-    if (error) throw error;
+    // 3. Fetch withdrawals (verified/detected count as real outflow)
+    let wdQuery = supabase
+      .from('withdrawals')
+      .select('amount, currency, close_time, mt4_account_id, status')
+      .eq('user_id', req.user.id)
+      .in('status', ['detected', 'verified']);
+    if (account_id) wdQuery = wdQuery.eq('mt4_account_id', account_id);
 
-    if (!snapshots || snapshots.length === 0) {
+    const { data: withdrawals, error: wdErr } = await wdQuery;
+    if (wdErr) throw wdErr;
+
+    const monthKey = (d) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+    // 4. For each account, find last snapshot per month
+    // Map: accountId -> { 'YYYY-MM' -> lastBalanceNormalized }
+    const perAccMonthEnd = {};
+    for (const id of accountIds) perAccMonthEnd[id] = {};
+    for (const snap of snapshots || []) {
+      const id = snap.mt4_account_id;
+      if (!perAccMonthEnd[id]) continue;
+      const key = monthKey(new Date(snap.created_at));
+      const balNorm = (Number(snap.balance) || 0) / div(id);
+      // snapshots are sorted ascending → last write wins
+      perAccMonthEnd[id][key] = balNorm;
+    }
+
+    // 5. Withdrawals per month (summed across accounts, normalized)
+    const wdPerMonth = {};
+    for (const w of withdrawals || []) {
+      const t = w.close_time || w.created_at;
+      if (!t) continue;
+      const key = monthKey(new Date(t));
+      const amtNorm = (Number(w.amount) || 0) / (w.currency === 'USC' ? 100 : 1);
+      wdPerMonth[key] = (wdPerMonth[key] || 0) + amtNorm;
+    }
+
+    // 6. Build sorted list of months that have snapshot data
+    const monthSet = new Set();
+    for (const id of accountIds) Object.keys(perAccMonthEnd[id]).forEach((k) => monthSet.add(k));
+    Object.keys(wdPerMonth).forEach((k) => monthSet.add(k));
+    const months = [...monthSet].sort();
+
+    if (months.length === 0 || totalInitial <= 0) {
       return res.json({ monthly: [] });
     }
 
-    // Normalize USC values
-    const normSnap = (snap) => {
-      const divisor = snap.mt4_accounts?.currency === 'USC' ? 100 : 1;
-      return {
-        created_at: snap.created_at,
-        balance: (snap.balance || 0) / divisor,
-        equity: (snap.equity || 0) / divisor,
-        mt4_account_id: snap.mt4_account_id,
-      };
-    };
+    // 7. For each month compute total end balance = sum(last snap per acc up to that month)
+    // If account has no snap in month M, carry-forward last known balance (or 0).
+    const monthly = [];
+    const lastKnown = {}; // accountId -> last balance seen
+    for (const id of accountIds) lastKnown[id] = 0;
 
-    const normalized = snapshots.map(normSnap);
+    let prevTotalEnd = totalInitial; // start of first month = initial balance
 
-    // Group by year-month
-    const monthMap = {};
-    for (const snap of normalized) {
-      const d = new Date(snap.created_at);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      if (!monthMap[key]) monthMap[key] = [];
-      monthMap[key].push(snap);
-    }
-
-    const monthly = Object.entries(monthMap)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, snaps], idx, arr) => {
-        // Use last snapshot of previous month as start balance (more accurate)
-        // Fall back to first snapshot of current month if no previous month exists
-        let startBalance;
-        if (idx > 0) {
-          const prevSnaps = arr[idx - 1][1];
-          startBalance = prevSnaps[prevSnaps.length - 1].balance;
-        } else {
-          startBalance = snaps[0].balance;
+    for (const key of months) {
+      let totalEnd = 0;
+      for (const id of accountIds) {
+        if (perAccMonthEnd[id][key] !== undefined) {
+          lastKnown[id] = perAccMonthEnd[id][key];
         }
-        const endBalance = snaps[snaps.length - 1].balance;
-        const gainPct = startBalance > 0 ? ((endBalance - startBalance) / startBalance) * 100 : 0;
-        const [year, month] = key.split('-');
-        return {
-          key,
-          year: parseInt(year),
-          month: parseInt(month),
-          gainPct: parseFloat(gainPct.toFixed(2)),
-          startBalance: parseFloat(startBalance.toFixed(2)),
-          endBalance: parseFloat(endBalance.toFixed(2)),
-        };
+        totalEnd += lastKnown[id];
+      }
+      const wd = wdPerMonth[key] || 0;
+      const profit = totalEnd + wd - prevTotalEnd;
+      const gainPct = totalInitial > 0 ? (profit / totalInitial) * 100 : 0;
+
+      const [year, month] = key.split('-');
+      monthly.push({
+        key,
+        year: parseInt(year),
+        month: parseInt(month),
+        gainPct: parseFloat(gainPct.toFixed(2)),
+        startBalance: parseFloat(prevTotalEnd.toFixed(2)),
+        endBalance: parseFloat(totalEnd.toFixed(2)),
+        withdrawals: parseFloat(wd.toFixed(2)),
+        profit: parseFloat(profit.toFixed(2)),
       });
 
-    return res.json({ monthly });
+      prevTotalEnd = totalEnd;
+    }
+
+    return res.json({ monthly, initialBalance: parseFloat(totalInitial.toFixed(2)) });
   } catch (err) {
     logger.error('GetMonthlyGain exception:', err);
     return res.status(500).json({ error: 'Failed to fetch monthly gain' });
