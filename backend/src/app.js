@@ -7,7 +7,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const slowDown = require('express-slow-down');
 const jwt = require('jsonwebtoken');
+const { blockScannerPaths, blockBadUserAgents } = require('./middleware/botProtection');
 
 const logger = require('./config/logger');
 const authRoutes = require('./routes/auth');
@@ -89,6 +91,10 @@ app.use(express.json({ limit: '5mb', verify: (req, res, buf) => { req.rawBody = 
 app.use(express.urlencoded({ extended: false }));
 app.use(morgan('dev'));
 
+// ─── Bot Protection ─────────────────────────────────────────────────────────
+app.use(blockScannerPaths);
+app.use(blockBadUserAgents);
+
 // JSON parse error handler - log snippet around error position
 app.use((err, req, res, next) => {
   if (err && err.type === 'entity.parse.failed') {
@@ -120,8 +126,22 @@ const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
   message: { error: 'Too many login attempts, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 app.use('/auth/', authLimiter);
+
+// Progressive slow-down for login/register: after 5 attempts in 15min,
+// each next request is delayed (500ms * count, max 20s)
+const authSlowDown = slowDown({
+  windowMs: 15 * 60 * 1000,
+  delayAfter: 5,
+  delayMs: (hits) => hits * 500,
+  maxDelayMs: 20000,
+  validate: { delayMs: false },
+});
+app.use('/auth/login', authSlowDown);
+app.use('/auth/register', authSlowDown);
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 app.use('/auth', authRoutes);
