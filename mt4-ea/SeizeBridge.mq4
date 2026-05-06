@@ -21,11 +21,6 @@
 
 #define EA_VERSION "3.1"
 
-// Windows API untuk eksekusi batch file (self-update)
-#import "shell32.dll"
-int ShellExecuteW(int hwnd, string lpOperation, string lpFile, string lpParameters, string lpDirectory, int nShowCmd);
-#import
-
 // Input parameters
 double OP_BALANCE;
 bool inProgress = false;
@@ -97,9 +92,6 @@ int OnInit()
 
    Print("[SeizeBridge] Mulai. Server=", ServerUrl, " Login=", AccountNumber());
 
-   // Cek update versi EA dari server (non-blocking — jika gagal tetap lanjut)
-   CheckForUpdate();
-
    // Timer fallback — push tetap berjalan meski tidak ada tick (weekend/pasar sepi)
    EventSetTimer(PushInterval);
 
@@ -148,104 +140,6 @@ string FetchToken()
    int end = StringFind(body, "\"", idx);
    if(end < 0) return("");
    return StringSubstr(body, idx, end - idx);
-}
-
-//--- Cek update EA dari server, download & replace otomatis jika ada versi baru
-void CheckForUpdate()
-{
-   string url = ServerUrl + "/api/mt4/ea-version";
-   char   dummy[], resultData[];
-   string resultHeaders;
-
-   int res = WebRequest("GET", url, "", 10000, dummy, resultData, resultHeaders);
-   if(res != 200)
-   {
-      Print("[SeizeBridge] CheckForUpdate: gagal cek versi. HTTP=", res);
-      return;
-   }
-
-   string body = CharArrayToString(resultData);
-
-   // Parse version
-   int idx = StringFind(body, "\"version\":\"");
-   if(idx < 0) return;
-   idx += 11;
-   int end = StringFind(body, "\"", idx);
-   if(end < 0) return;
-   string serverVersion = StringSubstr(body, idx, end - idx);
-
-   if(serverVersion == EA_VERSION)
-   {
-      Print("[SeizeBridge] Versi sudah terkini: v", EA_VERSION);
-      return;
-   }
-
-   // Only auto-update when server has a STRICTLY NEWER version (avoid downgrade)
-   if(StringCompare(serverVersion, EA_VERSION) <= 0)
-   {
-      Print("[SeizeBridge] Versi server (v", serverVersion, ") tidak lebih baru dari v", EA_VERSION, ". Skip update.");
-      return;
-   }
-
-   Print("[SeizeBridge] Update tersedia: v", EA_VERSION, " -> v", serverVersion, ". Mengunduh...");
-
-   // Parse download URL
-   idx = StringFind(body, "\"url\":\"");
-   if(idx < 0) return;
-   idx += 7;
-   end = StringFind(body, "\"", idx);
-   if(end < 0) return;
-   string downloadUrl = StringSubstr(body, idx, end - idx);
-
-   // Download .ex4 baru
-   char dlResult[];
-   string dlHeaders;
-   res = WebRequest("GET", downloadUrl, "", 60000, dummy, dlResult, dlHeaders);
-   if(res != 200)
-   {
-      Print("[SeizeBridge] Download gagal. HTTP=", res);
-      return;
-   }
-
-   // Simpan ke MQL4/Files/SeizeBridge_update.ex4
-   string updateFile = "SeizeBridge_update.ex4";
-   if(FileIsExist(updateFile)) FileDelete(updateFile);
-   int h = FileOpen(updateFile, FILE_WRITE | FILE_BIN);
-   if(h == INVALID_HANDLE)
-   {
-      Print("[SeizeBridge] Gagal buka file untuk write update. Error=", GetLastError());
-      return;
-   }
-   FileWriteArray(h, dlResult, 0, ArraySize(dlResult));
-   FileClose(h);
-
-   // Buat batch script yang akan copy file setelah EA unload
-   string dataPath    = TerminalInfoString(TERMINAL_DATA_PATH);
-   string filesPath   = dataPath + "\\MQL4\\Files\\";
-   string expertsPath = dataPath + "\\MQL4\\Experts\\";
-   string srcPath     = filesPath + updateFile;
-   string destPath    = expertsPath + "SeizeBridge.ex4";
-   string batFile     = "SeizeBridge_update.bat";
-   string batPath     = filesPath + batFile;
-
-   int bh = FileOpen(batFile, FILE_WRITE | FILE_TXT | FILE_ANSI);
-   if(bh == INVALID_HANDLE)
-   {
-      Print("[SeizeBridge] Gagal buat batch script update");
-      return;
-   }
-   FileWriteString(bh, "@echo off\r\n");
-   FileWriteString(bh, "timeout /t 4 /nobreak > nul\r\n");
-   FileWriteString(bh, "copy /Y \"" + srcPath + "\" \"" + destPath + "\"\r\n");
-   FileWriteString(bh, "del \"" + srcPath + "\"\r\n");
-   FileWriteString(bh, "del \"" + batPath + "\"\r\n");
-   FileClose(bh);
-
-   // Eksekusi batch di background
-   ShellExecuteW(0, "open", batPath, "", "", 0);
-
-   Print("[SeizeBridge] Update v", serverVersion, " diunduh. EA restart dalam 4 detik... (chart mungkin reload sebentar)");
-   ExpertRemove();  // unload EA agar .ex4 bisa di-overwrite, lalu MT4 load ulang otomatis
 }
 
 //--- Simpan token ke file lokal MT4 (MQL4/Files/)
