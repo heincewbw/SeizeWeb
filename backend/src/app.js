@@ -82,7 +82,18 @@ app.set('trust proxy', 1);
 
 // ─── Middleware ──────────────────────────────────────────────────────────────
 app.use(helmet({
-  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? undefined : false,
+  contentSecurityPolicy: process.env.NODE_ENV === 'production'
+    ? {
+        useDefaults: true,
+        directives: {
+          'img-src': ["'self'", 'data:', 'https:'],
+          'connect-src': ["'self'", 'https:', 'wss:'],
+          'frame-src': ["'self'", 'https://widget.myfxbook.com', 'https://www.myfxbook.com'],
+        },
+      }
+    : false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
 }));
 app.use(cors({
   origin: getAllowedOrigin(),

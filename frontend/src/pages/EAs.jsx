@@ -107,6 +107,7 @@ export default function EAs() {
                       alt={`${ea.name} live performance widget`}
                       className="w-full h-auto block"
                       loading="lazy"
+                      referrerPolicy="no-referrer"
                     />
                   </a>
                 </div>
