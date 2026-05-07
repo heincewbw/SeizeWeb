@@ -38,7 +38,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
       <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
-      <Route path="/eas" element={<EAsPublic />} />
+      <Route path="/expert-advisors" element={<EAsPublic />} />
 
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
