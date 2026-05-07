@@ -1,4 +1,4 @@
-import { ArrowTopRightOnSquareIcon, CpuChipIcon, ShieldCheckIcon, ChartBarIcon } from '@heroicons/react/24/outline';
+import { ArrowTopRightOnSquareIcon, CpuChipIcon, ShieldCheckIcon, ChartBarIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 
 const eas = [
   {
@@ -10,8 +10,44 @@ const eas = [
     myfxbookUrl: 'https://www.myfxbook.com/portfolio/seize/11734037',
     tags: ['Forex', 'Momentum', 'Multi-Pair'],
     status: 'Available',
+    trackingStart: '2025-10-15',
+    stats: {
+      gain: '+39.40%',
+      absGain: '+36.15%',
+      daily: '0.15%',
+      monthly: '4.72%',
+      drawdown: '38.66%',
+    },
+    statsAsOf: '2026-05-07',
   },
 ];
+
+function formatDateLabel(value) {
+  if (!value) return '—';
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return value;
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch {
+    return value;
+  }
+}
+
+const statColors = {
+  gain: 'text-brand-400',
+  absGain: 'text-brand-400',
+  daily: 'text-slate-100',
+  monthly: 'text-slate-100',
+  drawdown: 'text-danger-400',
+};
+
+const statLabels = {
+  gain: 'Gain',
+  absGain: 'Abs. Gain',
+  daily: 'Daily',
+  monthly: 'Monthly',
+  drawdown: 'Drawdown',
+};
 
 export default function EAs() {
   return (
@@ -54,13 +90,41 @@ export default function EAs() {
               ))}
             </div>
 
-            <div className="grid grid-cols-2 gap-2 mt-5 text-xs">
+            {/* Stats snapshot from Myfxbook */}
+            {ea.stats && (
+              <div className="mt-5 rounded-lg border border-slate-800 bg-slate-900/40 overflow-hidden">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-slate-800">
+                  <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-400">
+                    Performance Snapshot
+                  </span>
+                  {ea.statsAsOf && (
+                    <span className="text-[10px] text-slate-500">as of {formatDateLabel(ea.statsAsOf)}</span>
+                  )}
+                </div>
+                <div className="divide-y divide-slate-800">
+                  {Object.entries(ea.stats).map(([key, value]) => (
+                    <div key={key} className="flex items-center justify-between px-3 py-2 text-sm">
+                      <span className="text-slate-400">{statLabels[key] || key}</span>
+                      <span className={`font-mono font-semibold ${statColors[key] || 'text-slate-100'}`}>
+                        {value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
               <div className="flex items-center gap-2 text-slate-400">
-                <ShieldCheckIcon className="w-4 h-4 text-brand-400" />
-                Verified Track Record
+                <CalendarDaysIcon className="w-4 h-4 text-brand-400 flex-shrink-0" />
+                <span className="truncate">Started {formatDateLabel(ea.trackingStart)}</span>
               </div>
               <div className="flex items-center gap-2 text-slate-400">
-                <ChartBarIcon className="w-4 h-4 text-brand-400" />
+                <ShieldCheckIcon className="w-4 h-4 text-brand-400 flex-shrink-0" />
+                Verified
+              </div>
+              <div className="flex items-center gap-2 text-slate-400">
+                <ChartBarIcon className="w-4 h-4 text-brand-400 flex-shrink-0" />
                 Live Myfxbook
               </div>
             </div>
