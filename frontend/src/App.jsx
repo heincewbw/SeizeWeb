@@ -13,6 +13,7 @@ import Settings from '@/pages/Settings';
 import Withdrawals from '@/pages/Withdrawals';
 import AdminUsers from '@/pages/AdminUsers';
 import AdminEAs from '@/pages/AdminEAs';
+import EAsPublic from '@/pages/EAsPublic';
 import useAuthStore from '@/store/useAuthStore';
 
 function ProtectedRoute({ children }) {
@@ -37,6 +38,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
       <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
+      <Route path="/eas" element={<EAsPublic />} />
 
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/dashboard" replace />} />

@@ -96,6 +96,7 @@ const getTradeHistory = async (req, res) => {
       .from('trade_history')
       .select('*, mt4_accounts(currency)', { count: 'exact' })
       .eq('user_id', req.user.id)
+      .not('type', 'in', '("BALANCE","CREDIT")')
       .order('close_time', { ascending: false })
       .range(offset, offset + parseInt(limit) - 1);
 

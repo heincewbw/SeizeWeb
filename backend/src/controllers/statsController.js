@@ -29,7 +29,8 @@ const getSummary = async (req, res) => {
     let histQuery = supabase
       .from('trade_history')
       .select('profit, symbol, lots, mt4_accounts(currency)')
-      .eq('user_id', req.user.id);
+      .eq('user_id', req.user.id)
+      .not('type', 'in', '("BALANCE","CREDIT")');
 
     if (account_id) histQuery = histQuery.eq('mt4_account_id', account_id);
 
