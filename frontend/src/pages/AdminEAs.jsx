@@ -211,6 +211,25 @@ export default function AdminEAs() {
                   <input className="input-field" placeholder="https://www.myfxbook.com/members/..." value={form.widget_link} onChange={(e) => setForm({ ...form, widget_link: e.target.value })} />
                 </div>
               </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">
+                  Or paste full Myfxbook HTML code <span className="text-slate-500">(auto-fills both URLs above)</span>
+                </label>
+                <textarea
+                  className="input-field font-mono text-xs min-h-[60px]"
+                  placeholder='<a href="https://www.myfxbook.com/members/.../11734037"><img src="https://widget.myfxbook.com/widget/widget.png?accountOid=11734037&type=5"/></a>'
+                  onChange={(e) => {
+                    const html = e.target.value;
+                    const srcMatch = html.match(/<img[^>]*\bsrc=["']([^"']+)["']/i);
+                    const hrefMatch = html.match(/<a[^>]*\bhref=["']([^"']+)["']/i);
+                    setForm((f) => ({
+                      ...f,
+                      widget_url: srcMatch ? srcMatch[1].replace(/&amp;/g, '&') : f.widget_url,
+                      widget_link: hrefMatch ? hrefMatch[1].replace(/&amp;/g, '&') : f.widget_link,
+                    }));
+                  }}
+                />
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Tracking Start</label>
