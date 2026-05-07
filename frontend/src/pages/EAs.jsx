@@ -101,12 +101,13 @@ export default function EAs() {
                     href={ea.widget_link || ea.myfxbook_url || ea.widget_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block"
+                    className="block overflow-hidden"
                   >
                     <img
                       src={ea.widget_url}
                       alt={`${ea.name} live performance widget`}
                       className="w-full h-auto block"
+                      style={{ marginTop: '-38px' }}
                       loading="lazy"
                       referrerPolicy="no-referrer"
                     />
