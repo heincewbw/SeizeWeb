@@ -149,6 +149,24 @@ export default function Sidebar({ desktopCollapsed, mobileOpen, onDesktopToggle,
               <UsersIcon style={{ width: '18px', height: '18px' }} className="flex-shrink-0" />
               <span className={clsx('whitespace-nowrap', desktopCollapsed && 'lg:hidden')}>Users Overview</span>
             </NavLink>
+            <NavLink
+              to="/admin/eas"
+              onClick={onMobileClose}
+              title={desktopCollapsed ? 'Manage EAs' : undefined}
+              className={({ isActive }) =>
+                clsx(
+                  'flex items-center rounded-lg text-sm font-medium transition-all duration-150',
+                  desktopCollapsed ? 'lg:justify-center lg:px-0 lg:py-2.5' : '',
+                  'gap-3 px-3 py-2.5',
+                  isActive
+                    ? 'bg-brand-500/15 text-brand-400 border border-brand-500/20'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                )
+              }
+            >
+              <CpuChipIcon style={{ width: '18px', height: '18px' }} className="flex-shrink-0" />
+              <span className={clsx('whitespace-nowrap', desktopCollapsed && 'lg:hidden')}>Manage EAs</span>
+            </NavLink>
           </>
         )}
       </nav>

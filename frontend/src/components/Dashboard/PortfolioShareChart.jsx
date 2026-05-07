@@ -1,7 +1,7 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { formatCurrency } from '@/utils/format';
 
-const COLORS = ['#6366f1', '#1e293b'];
+const COLORS = ['#6366f1', '#64748b'];
 
 const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
@@ -35,6 +35,9 @@ export default function PortfolioShareChart({ data, loading }) {
   }
 
   const { userBalance = 0, otherBalance = 0, totalBalance = 0, percentage = 0, totalUsers = 0 } = data || {};
+
+  const userPct = totalBalance > 0 ? (userBalance / totalBalance) * 100 : 0;
+  const otherPct = totalBalance > 0 ? (otherBalance / totalBalance) * 100 : 0;
 
   const chartData = [
     { name: 'Portfolio Anda', value: userBalance },
@@ -85,14 +88,18 @@ export default function PortfolioShareChart({ data, loading }) {
               <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 shrink-0" />
               <span className="text-slate-400">Portfolio Anda</span>
             </div>
-            <span className="font-mono font-medium text-slate-200">{formatCurrency(userBalance)}</span>
+            <span className="font-mono font-medium text-slate-200">
+              {formatCurrency(userBalance)} <span className="text-slate-500">({userPct.toFixed(1)}%)</span>
+            </span>
           </div>
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-slate-700 shrink-0" />
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-500 shrink-0" />
               <span className="text-slate-400">Investor Lain</span>
             </div>
-            <span className="font-mono font-medium text-slate-200">{formatCurrency(otherBalance)}</span>
+            <span className="font-mono font-medium text-slate-200">
+              {formatCurrency(otherBalance)} <span className="text-slate-500">({otherPct.toFixed(1)}%)</span>
+            </span>
           </div>
           <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-700/50">
             <span className="text-slate-500">Total Pool</span>

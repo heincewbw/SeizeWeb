@@ -1,17 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { positionsAPI, accountsAPI } from '@/services/api';
 import toast from 'react-hot-toast';
-import { formatCurrency, formatDate } from '@/utils/format';
+import { formatCurrency } from '@/utils/format';
 import { ArrowPathIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
-
-const typeColors = { BUY: 'text-brand-400', SELL: 'text-danger-400' };
 
 export default function History() {
   const [trades, setTrades] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
-  const [filters, setFilters] = useState({ account_id: '', from_date: '', to_date: '', page: 1 });
+  const [filters, setFilters] = useState({ account_id: '', from_date: '', to_date: '' });
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
@@ -19,18 +16,13 @@ export default function History() {
     loadHistory();
   }, []);
 
-  useEffect(() => {
-    loadHistory();
-  }, [filters.page]);
-
   const loadHistory = async () => {
     setLoading(true);
     try {
-      const params = { ...filters, limit: 50 };
+      const params = { ...filters, limit: 5000 };
       Object.keys(params).forEach((k) => { if (!params[k]) delete params[k]; });
       const { data } = await positionsAPI.getHistory(params);
-      setTrades(data.trades);
-      setPagination(data.pagination);
+      setTrades(data.trades || []);
     } catch {
       toast.error('Failed to load trade history');
     } finally {
@@ -40,7 +32,6 @@ export default function History() {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    setFilters((f) => ({ ...f, page: 1 }));
     loadHistory();
   };
 
@@ -61,12 +52,76 @@ export default function History() {
     }
   };
 
+  // Aggregate per day (UTC date from close_time)
+  const dailyRows = useMemo(() => {
+    const map = new Map();
+    for (const t of trades) {
+      if (!t.close_time) continue;
+      const dateKey = new Date(t.close_time).toISOString().slice(0, 10); // YYYY-MM-DD
+      const profit = Number(t.profit) || 0;
+      const commission = Number(t.commission) || 0;
+      const swap = Number(t.swap) || 0;
+      const net = profit + commission + swap;
+      const lots = Number(t.lots) || 0;
+
+      const row = map.get(dateKey) || {
+        date: dateKey,
+        trades: 0,
+        wins: 0,
+        losses: 0,
+        lots: 0,
+        profit: 0,
+        net: 0,
+      };
+      row.trades += 1;
+      if (net > 0) row.wins += 1;
+      else if (net < 0) row.losses += 1;
+      row.lots += lots;
+      row.profit += profit;
+      row.net += net;
+      map.set(dateKey, row);
+    }
+    return Array.from(map.values()).sort((a, b) => (a.date < b.date ? 1 : -1));
+  }, [trades]);
+
+  const totals = useMemo(() => {
+    return dailyRows.reduce(
+      (acc, r) => {
+        acc.trades += r.trades;
+        acc.wins += r.wins;
+        acc.losses += r.losses;
+        acc.lots += r.lots;
+        acc.profit += r.profit;
+        acc.net += r.net;
+        return acc;
+      },
+      { trades: 0, wins: 0, losses: 0, lots: 0, profit: 0, net: 0 }
+    );
+  }, [dailyRows]);
+
+  const formatDayLabel = (key) => {
+    try {
+      return new Date(key + 'T00:00:00Z').toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'UTC',
+      });
+    } catch {
+      return key;
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-2xl font-bold text-slate-100">Trade History</h2>
-          <p className="text-sm text-slate-400 mt-0.5">{pagination.total} closed trades</p>
+          <p className="text-sm text-slate-400 mt-0.5">
+            {loading
+              ? 'Loading...'
+              : `${dailyRows.length} trading day${dailyRows.length !== 1 ? 's' : ''} — ${totals.trades} trades`}
+          </p>
         </div>
         <button onClick={handleSyncHistory} className="btn-secondary" disabled={syncing}>
           <ArrowPathIcon className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
@@ -121,7 +176,7 @@ export default function History() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-700">
-                {['Ticket', 'Symbol', 'Type', 'Lots', 'Open Price', 'Close Price', 'Profit', 'Net', 'Close Time'].map((h) => (
+                {['Date', 'Trades', 'Win / Loss', 'Total Lots', 'Profit', 'Net P/L'].map((h) => (
                   <th key={h} className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3 whitespace-nowrap">
                     {h}
                   </th>
@@ -130,59 +185,56 @@ export default function History() {
             </thead>
             <tbody className="divide-y divide-slate-800">
               {loading ? (
-                Array.from({ length: 10 }).map((_, i) => (
-                  <tr key={i}>{Array.from({ length: 9 }).map((_, j) => (
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i}>{Array.from({ length: 6 }).map((_, j) => (
                     <td key={j} className="px-4 py-3"><div className="h-4 bg-slate-700 rounded animate-pulse" /></td>
                   ))}</tr>
                 ))
-              ) : trades.length === 0 ? (
-                <tr><td colSpan={9} className="text-center py-16 text-slate-500">No trades found</td></tr>
+              ) : dailyRows.length === 0 ? (
+                <tr><td colSpan={6} className="text-center py-16 text-slate-500">No trades found</td></tr>
               ) : (
-                trades.map((trade) => {
-                  const net = (trade.profit || 0) + (trade.commission || 0) + (trade.swap || 0);
-                  return (
-                    <tr key={`${trade.ticket}-${trade.mt4_account_id}`} className="hover:bg-slate-800/40 transition-colors">
-                      <td className="px-4 py-3 text-xs font-mono text-slate-400">{trade.ticket}</td>
-                      <td className="px-4 py-3 font-semibold text-slate-100">{trade.symbol}</td>
-                      <td className={`px-4 py-3 font-semibold text-xs ${typeColors[trade.type] || 'text-slate-300'}`}>{trade.type}</td>
-                      <td className="px-4 py-3 font-mono text-slate-300">{trade.lots?.toFixed(2)}</td>
-                      <td className="px-4 py-3 font-mono text-slate-300">{trade.open_price?.toFixed(5)}</td>
-                      <td className="px-4 py-3 font-mono text-slate-300">{trade.close_price?.toFixed(5)}</td>
-                      <td className={`px-4 py-3 font-mono ${trade.profit >= 0 ? 'text-brand-400' : 'text-danger-400'}`}>{formatCurrency(trade.profit)}</td>
-                      <td className={`px-4 py-3 font-mono font-semibold ${net >= 0 ? 'text-brand-400' : 'text-danger-400'}`}>{formatCurrency(net)}</td>
-                      <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{formatDate(trade.close_time)}</td>
-                    </tr>
-                  );
-                })
+                dailyRows.map((row) => (
+                  <tr key={row.date} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="px-4 py-3 font-semibold text-slate-100 whitespace-nowrap">{formatDayLabel(row.date)}</td>
+                    <td className="px-4 py-3 font-mono text-slate-300">{row.trades}</td>
+                    <td className="px-4 py-3 text-xs whitespace-nowrap">
+                      <span className="text-brand-400 font-semibold">{row.wins}</span>
+                      <span className="text-slate-600 mx-1">/</span>
+                      <span className="text-danger-400 font-semibold">{row.losses}</span>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-slate-300">{row.lots.toFixed(2)}</td>
+                    <td className={`px-4 py-3 font-mono ${row.profit >= 0 ? 'text-brand-400' : 'text-danger-400'}`}>
+                      {formatCurrency(row.profit)}
+                    </td>
+                    <td className={`px-4 py-3 font-mono font-semibold ${row.net >= 0 ? 'text-brand-400' : 'text-danger-400'}`}>
+                      {formatCurrency(row.net)}
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
+            {!loading && dailyRows.length > 0 && (
+              <tfoot>
+                <tr className="border-t border-slate-700 bg-slate-800/30">
+                  <td className="px-4 py-3 text-sm font-semibold text-slate-400">Total</td>
+                  <td className="px-4 py-3 font-mono font-semibold text-slate-200">{totals.trades}</td>
+                  <td className="px-4 py-3 text-xs whitespace-nowrap">
+                    <span className="text-brand-400 font-semibold">{totals.wins}</span>
+                    <span className="text-slate-600 mx-1">/</span>
+                    <span className="text-danger-400 font-semibold">{totals.losses}</span>
+                  </td>
+                  <td className="px-4 py-3 font-mono font-semibold text-slate-200">{totals.lots.toFixed(2)}</td>
+                  <td className={`px-4 py-3 font-mono font-bold ${totals.profit >= 0 ? 'text-brand-400' : 'text-danger-400'}`}>
+                    {formatCurrency(totals.profit)}
+                  </td>
+                  <td className={`px-4 py-3 font-mono font-bold ${totals.net >= 0 ? 'text-brand-400' : 'text-danger-400'}`}>
+                    {formatCurrency(totals.net)}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
-
-        {/* Pagination */}
-        {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-slate-700">
-            <span className="text-sm text-slate-500">
-              Page {pagination.page} of {pagination.totalPages} ({pagination.total} trades)
-            </span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setFilters((f) => ({ ...f, page: f.page - 1 }))}
-                disabled={filters.page <= 1}
-                className="btn-secondary px-3 py-1 text-xs disabled:opacity-30"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => setFilters((f) => ({ ...f, page: f.page + 1 }))}
-                disabled={filters.page >= pagination.totalPages}
-                className="btn-secondary px-3 py-1 text-xs disabled:opacity-30"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -19,6 +19,7 @@ const statsRoutes = require('./routes/stats');
 const mt4PushRoutes = require('./routes/mt4Push');
 const withdrawalRoutes = require('./routes/withdrawals');
 const adminRoutes = require('./routes/admin');
+const easRoutes = require('./routes/eas');
 const supabase = require('./config/supabase');
 const { startOfflineChecker } = require('./services/offlineChecker');
 
@@ -150,6 +151,7 @@ app.use('/api/positions', positionRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/mt4', mt4PushRoutes);
 app.use('/api/withdrawals', withdrawalRoutes);
+app.use('/api/eas', easRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.get('/health', (req, res) => {

@@ -131,7 +131,7 @@ export default function Positions() {
             {grouped.length > 0 && (
               <tfoot>
                 <tr className="border-t border-slate-700 bg-slate-800/30">
-                  <td colSpan={7} className="px-4 py-3 text-sm font-semibold text-slate-400">Total</td>
+                  <td colSpan={6} className="px-4 py-3 text-sm font-semibold text-slate-400">Total</td>
                   <td className={`px-4 py-3 font-mono font-bold ${totalProfit >= 0 ? 'text-brand-400' : 'text-danger-400'}`}>
                     {formatCurrency(totalProfit)}
                   </td>

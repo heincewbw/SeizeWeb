@@ -76,6 +76,11 @@ export const withdrawalsAPI = {
   updateStatus: (id, data) => api.put(`/api/withdrawals/${id}/status`, data),
 };
 
+// ─── EAs ──────────────────────────────────────────────────────────────────
+export const easAPI = {
+  list: () => api.get('/api/eas'),
+};
+
 // ─── Admin ────────────────────────────────────────────────────────────────
 export const adminAPI = {
   getUsersOverview: () => api.get('/api/admin/users-overview'),
@@ -89,4 +94,9 @@ export const adminAPI = {
   updateCommissionRate: (userId, rate) => api.put(`/api/admin/users/${userId}/commission`, { commission_rate: rate }),
   generateInvoice: (userId, month, year) => api.get('/api/admin/invoice', { params: { user_id: userId, month, year } }),
   sendInvoiceEmail: (invoice) => api.post('/api/admin/invoice/send', { invoice }),
+  // EAs management
+  listEAs: () => api.get('/api/admin/eas'),
+  createEA: (data) => api.post('/api/admin/eas', data),
+  updateEA: (id, data) => api.put(`/api/admin/eas/${id}`, data),
+  deleteEA: (id) => api.delete(`/api/admin/eas/${id}`),
 };
