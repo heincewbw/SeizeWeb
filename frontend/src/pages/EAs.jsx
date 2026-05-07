@@ -7,7 +7,7 @@ const eas = [
     tagline: 'Smart momentum capture EA',
     description:
       'Seize is a multi-strategy expert advisor designed to capture momentum across major forex pairs with disciplined risk management.',
-    myfxbookUrl: 'https://www.myfxbook.com/',
+    myfxbookUrl: 'https://www.myfxbook.com/portfolio/seize/11734037',
     tags: ['Forex', 'Momentum', 'Multi-Pair'],
     status: 'Available',
   },
