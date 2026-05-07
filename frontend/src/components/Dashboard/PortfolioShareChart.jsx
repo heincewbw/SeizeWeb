@@ -85,7 +85,7 @@ export default function PortfolioShareChart({ data, loading }) {
         <div className="w-full space-y-2.5">
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 shrink-0" />
+              <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" />
               <span className="text-slate-400">Portfolio Anda</span>
             </div>
             <span className="font-mono font-medium text-slate-200">
