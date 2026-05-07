@@ -121,7 +121,7 @@ export default function History() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-700">
-                {['Ticket', 'Symbol', 'Type', 'Lots', 'Open Price', 'Close Price', 'Profit', 'Commission', 'Swap', 'Net', 'Close Time'].map((h) => (
+                {['Ticket', 'Symbol', 'Type', 'Lots', 'Open Price', 'Close Price', 'Profit', 'Net', 'Close Time'].map((h) => (
                   <th key={h} className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3 whitespace-nowrap">
                     {h}
                   </th>
@@ -131,12 +131,12 @@ export default function History() {
             <tbody className="divide-y divide-slate-800">
               {loading ? (
                 Array.from({ length: 10 }).map((_, i) => (
-                  <tr key={i}>{Array.from({ length: 11 }).map((_, j) => (
+                  <tr key={i}>{Array.from({ length: 9 }).map((_, j) => (
                     <td key={j} className="px-4 py-3"><div className="h-4 bg-slate-700 rounded animate-pulse" /></td>
                   ))}</tr>
                 ))
               ) : trades.length === 0 ? (
-                <tr><td colSpan={11} className="text-center py-16 text-slate-500">No trades found</td></tr>
+                <tr><td colSpan={9} className="text-center py-16 text-slate-500">No trades found</td></tr>
               ) : (
                 trades.map((trade) => {
                   const net = (trade.profit || 0) + (trade.commission || 0) + (trade.swap || 0);
@@ -149,8 +149,6 @@ export default function History() {
                       <td className="px-4 py-3 font-mono text-slate-300">{trade.open_price?.toFixed(5)}</td>
                       <td className="px-4 py-3 font-mono text-slate-300">{trade.close_price?.toFixed(5)}</td>
                       <td className={`px-4 py-3 font-mono ${trade.profit >= 0 ? 'text-brand-400' : 'text-danger-400'}`}>{formatCurrency(trade.profit)}</td>
-                      <td className="px-4 py-3 font-mono text-slate-500">{formatCurrency(trade.commission)}</td>
-                      <td className="px-4 py-3 font-mono text-slate-500">{formatCurrency(trade.swap)}</td>
                       <td className={`px-4 py-3 font-mono font-semibold ${net >= 0 ? 'text-brand-400' : 'text-danger-400'}`}>{formatCurrency(net)}</td>
                       <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{formatDate(trade.close_time)}</td>
                     </tr>
