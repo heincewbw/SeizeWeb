@@ -1,7 +1,7 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { formatCurrency } from '@/utils/format';
 
-const COLORS = ['#6366f1', '#64748b'];
+const COLORS = ['#22c55e', '#64748b'];
 
 const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
