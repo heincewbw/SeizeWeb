@@ -201,19 +201,9 @@ export default function AdminEAs() {
                 <label className="block text-xs text-slate-400 mb-1">Myfxbook URL</label>
                 <input className="input-field" placeholder="https://www.myfxbook.com/portfolio/..." value={form.myfxbook_url} onChange={(e) => setForm({ ...form, myfxbook_url: e.target.value })} />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Widget Image URL</label>
-                  <input className="input-field" placeholder="https://widget.myfxbook.com/widget/widget.png?accountOid=..." value={form.widget_url} onChange={(e) => setForm({ ...form, widget_url: e.target.value })} />
-                </div>
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Widget Link URL</label>
-                  <input className="input-field" placeholder="https://www.myfxbook.com/members/..." value={form.widget_link} onChange={(e) => setForm({ ...form, widget_link: e.target.value })} />
-                </div>
-              </div>
               <div>
                 <label className="block text-xs text-slate-400 mb-1">
-                  Or paste full Myfxbook HTML code <span className="text-slate-500">(auto-fills both URLs above)</span>
+                  Myfxbook Widget HTML Code <span className="text-slate-500">(paste dari Myfxbook)</span>
                 </label>
                 <textarea
                   className="input-field font-mono text-xs min-h-[60px]"
