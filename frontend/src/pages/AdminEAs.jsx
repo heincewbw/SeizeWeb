@@ -15,7 +15,6 @@ const emptyForm = {
   status: 'Available',
   is_active: true,
   sort_order: 0,
-  total_investment_usd: '',
 };
 
 export default function AdminEAs() {
@@ -62,7 +61,6 @@ export default function AdminEAs() {
       status: ea.status || 'Available',
       is_active: !!ea.is_active,
       sort_order: ea.sort_order ?? 0,
-      total_investment_usd: ea.total_investment_usd != null ? ea.total_investment_usd : '',
     });
     setShowModal(true);
   };
@@ -129,7 +127,7 @@ export default function AdminEAs() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-700">
-                {['Sort', 'Name', 'Tagline', 'Status', 'Active', 'Tracking Start', 'Tags', ''].map((h, i) => (
+                {['Sort', 'Name', 'Tagline', 'Status', 'Active', 'Tracking Start', 'Total Invested', 'Tags', ''].map((h, i) => (
                   <th key={i} className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3 whitespace-nowrap">
                     {h}
                   </th>
@@ -138,9 +136,9 @@ export default function AdminEAs() {
             </thead>
             <tbody className="divide-y divide-slate-800">
               {loading ? (
-                <tr><td colSpan={8} className="text-center py-10 text-slate-500">Loading...</td></tr>
+                  <tr><td colSpan={9} className="text-center py-10 text-slate-500">Loading...</td></tr>
               ) : eas.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-10 text-slate-500">No EAs yet</td></tr>
+                <tr><td colSpan={9} className="text-center py-10 text-slate-500">No EAs yet</td></tr>
               ) : (
                 eas.map((ea) => (
                   <tr key={ea.id} className="hover:bg-slate-800/40 transition-colors">
@@ -158,6 +156,11 @@ export default function AdminEAs() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-400">{ea.tracking_start ? ea.tracking_start.slice(0, 10) : '—'}</td>
+                    <td className="px-4 py-3 text-sm font-semibold text-green-400">
+                      {ea.total_investment_usd != null
+                        ? `$${Number(ea.total_investment_usd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        : <span className="text-slate-600">—</span>}
+                    </td>
                     <td className="px-4 py-3 text-xs text-slate-500">{(ea.tags || []).join(', ') || '—'}</td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <button onClick={() => openEdit(ea)} className="btn-secondary px-2 py-1 text-xs mr-2">
@@ -222,17 +225,11 @@ export default function AdminEAs() {
                   }}
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs text-slate-400 mb-1">Total Investment (USD)</label>
-                  <input type="number" step="0.01" min="0" className="input-field" placeholder="e.g. 50000" value={form.total_investment_usd} onChange={(e) => setForm({ ...form, total_investment_usd: e.target.value })} />
-                </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Tracking Start</label>
                   <input type="date" className="input-field" value={form.tracking_start} onChange={(e) => setForm({ ...form, tracking_start: e.target.value })} />
                 </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Status</label>
                   <input className="input-field" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} />
@@ -242,6 +239,7 @@ export default function AdminEAs() {
                   <input type="number" className="input-field" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: e.target.value })} />
                 </div>
               </div>
+              <p className="text-xs text-slate-500 italic">💡 Total Invested dihitung otomatis dari saldo MT4 yang terhubung ke EA ini.</p>
               <div>
                 <label className="block text-xs text-slate-400 mb-1">Tags (comma separated)</label>
                 <input className="input-field" placeholder="Forex, Momentum, Multi-Pair" value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />

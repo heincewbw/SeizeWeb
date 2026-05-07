@@ -1,17 +1,41 @@
 const supabase = require('../config/supabase');
 const logger = require('../config/logger');
 
-// GET /api/eas — public list of active EAs (auth required)
+// Helper: compute total investment per EA from connected MT4 accounts
+const fetchInvestmentTotals = async () => {
+  const { data, error } = await supabase
+    .from('mt4_accounts')
+    .select('ea_id, balance, currency')
+    .not('ea_id', 'is', null)
+    .eq('is_connected', true);
+  if (error) return {};
+  const totals = {};
+  for (const acc of data || []) {
+    if (!acc.ea_id) continue;
+    const usd = (Number(acc.balance) || 0) / (acc.currency === 'USC' ? 100 : 1);
+    totals[acc.ea_id] = (totals[acc.ea_id] || 0) + usd;
+  }
+  return totals;
+};
+
+// GET /api/eas — public list of active EAs
 const listEAs = async (_req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('expert_advisors')
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order', { ascending: true })
-      .order('created_at', { ascending: true });
+    const [{ data, error }, totals] = await Promise.all([
+      supabase
+        .from('expert_advisors')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true }),
+      fetchInvestmentTotals(),
+    ]);
     if (error) throw error;
-    return res.json({ eas: data || [] });
+    const eas = (data || []).map((ea) => ({
+      ...ea,
+      total_investment_usd: totals[ea.id] != null ? parseFloat(totals[ea.id].toFixed(2)) : null,
+    }));
+    return res.json({ eas });
   } catch (err) {
     logger.error('listEAs exception:', err);
     return res.status(500).json({ error: 'Failed to fetch EAs' });
@@ -21,13 +45,20 @@ const listEAs = async (_req, res) => {
 // GET /api/admin/eas — admin: list all (incl. inactive)
 const adminListEAs = async (_req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('expert_advisors')
-      .select('*')
-      .order('sort_order', { ascending: true })
-      .order('created_at', { ascending: true });
+    const [{ data, error }, totals] = await Promise.all([
+      supabase
+        .from('expert_advisors')
+        .select('*')
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true }),
+      fetchInvestmentTotals(),
+    ]);
     if (error) throw error;
-    return res.json({ eas: data || [] });
+    const eas = (data || []).map((ea) => ({
+      ...ea,
+      total_investment_usd: totals[ea.id] != null ? parseFloat(totals[ea.id].toFixed(2)) : null,
+    }));
+    return res.json({ eas });
   } catch (err) {
     logger.error('adminListEAs exception:', err);
     return res.status(500).json({ error: 'Failed to fetch EAs' });
@@ -35,7 +66,7 @@ const adminListEAs = async (_req, res) => {
 };
 
 const sanitize = (body) => {
-  const allowed = ['name', 'tagline', 'description', 'myfxbook_url', 'widget_url', 'widget_link', 'tracking_start', 'tags', 'status', 'is_active', 'sort_order', 'total_investment_usd'];
+  const allowed = ['name', 'tagline', 'description', 'myfxbook_url', 'widget_url', 'widget_link', 'tracking_start', 'tags', 'status', 'is_active', 'sort_order'];
   const out = {};
   for (const k of allowed) {
     if (body[k] === undefined) continue;
@@ -52,10 +83,6 @@ const sanitize = (body) => {
       out.is_active = !!body.is_active;
     } else if (k === 'sort_order') {
       out.sort_order = parseInt(body.sort_order) || 0;
-    } else if (k === 'total_investment_usd') {
-      out.total_investment_usd = body.total_investment_usd !== '' && body.total_investment_usd != null
-        ? parseFloat(body.total_investment_usd) || null
-        : null;
     } else {
       out[k] = body[k] === '' ? null : body[k];
     }
