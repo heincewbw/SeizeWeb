@@ -15,6 +15,7 @@ const emptyForm = {
   status: 'Available',
   is_active: true,
   sort_order: 0,
+  min_equity: '',
 };
 
 export default function AdminEAs() {
@@ -61,6 +62,7 @@ export default function AdminEAs() {
       status: ea.status || 'Available',
       is_active: !!ea.is_active,
       sort_order: ea.sort_order ?? 0,
+      min_equity: ea.min_equity != null ? ea.min_equity : '',
     });
     setShowModal(true);
   };
@@ -227,6 +229,10 @@ export default function AdminEAs() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
+                  <label className="block text-xs text-slate-400 mb-1">Min Equity (USD)</label>
+                  <input type="number" step="0.01" min="0" className="input-field" placeholder="e.g. 1000" value={form.min_equity} onChange={(e) => setForm({ ...form, min_equity: e.target.value })} />
+                </div>
+                <div>
                   <label className="block text-xs text-slate-400 mb-1">Tracking Start</label>
                   <input type="date" className="input-field" value={form.tracking_start} onChange={(e) => setForm({ ...form, tracking_start: e.target.value })} />
                 </div>
@@ -234,6 +240,8 @@ export default function AdminEAs() {
                   <label className="block text-xs text-slate-400 mb-1">Status</label>
                   <input className="input-field" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} />
                 </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Sort Order</label>
                   <input type="number" className="input-field" value={form.sort_order} onChange={(e) => setForm({ ...form, sort_order: e.target.value })} />

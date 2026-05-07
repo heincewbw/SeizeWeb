@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import {
   ArrowTopRightOnSquareIcon,
   CpuChipIcon,
-  ShieldCheckIcon,
+  UserGroupIcon,
   ChartBarIcon,
   CalendarDaysIcon,
   ArrowRightOnRectangleIcon,
@@ -146,12 +146,12 @@ export default function EAsPublic() {
                     <span className="truncate">Started {formatDateLabel(ea.tracking_start)}</span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-400">
-                    <ShieldCheckIcon className="w-4 h-4 text-brand-400 flex-shrink-0" />
-                    Verified
+                    <UserGroupIcon className="w-4 h-4 text-brand-400 flex-shrink-0" />
+                    <span>{ea.total_investors ?? 0} Investor</span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-400">
                     <ChartBarIcon className="w-4 h-4 text-brand-400 flex-shrink-0" />
-                    Live Myfxbook
+                    <span>Min Equity{ea.min_equity != null ? `: $${Number(ea.min_equity).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}` : ': —'}</span>
                   </div>
                   {ea.total_investment_usd != null && (
                     <div className="flex items-center gap-2 text-slate-400">
