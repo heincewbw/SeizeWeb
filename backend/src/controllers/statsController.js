@@ -139,18 +139,28 @@ const getEquityChart = async (req, res) => {
       buckets[bucketKey][snap.mt4_account_id] = normalized;
     }
 
-    // Build aggregated chart: sum all accounts in each bucket
-    const chart = Object.entries(buckets)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([bucketKey, accountSnaps]) => {
-        const values = Object.values(accountSnaps);
-        return {
-          created_at: values[0].created_at,
-          equity:  values.reduce((s, v) => s + (v.equity  || 0), 0),
-          balance: values.reduce((s, v) => s + (v.balance || 0), 0),
-          profit:  values.reduce((s, v) => s + (v.profit  || 0), 0),
-        };
-      });
+    // Build aggregated chart: carry-forward last known value per account so
+    // buckets where only some accounts reported don't cause false spikes.
+    const sortedBuckets = Object.entries(buckets).sort(([a], [b]) => a.localeCompare(b));
+    const lastKnown = {}; // { [account_id]: { equity, balance, profit } }
+
+    const chart = sortedBuckets.map(([, accountSnaps]) => {
+      // Update lastKnown with any new snapshots in this bucket
+      for (const [accountId, snap] of Object.entries(accountSnaps)) {
+        lastKnown[accountId] = snap;
+      }
+      // Sum ALL accounts seen so far (carry-forward fills gaps)
+      let equity = 0, balance = 0, profit = 0;
+      for (const snap of Object.values(lastKnown)) {
+        equity  += snap.equity  || 0;
+        balance += snap.balance || 0;
+        profit  += snap.profit  || 0;
+      }
+      return {
+        created_at: Object.values(accountSnaps)[0].created_at,
+        equity, balance, profit,
+      };
+    });
 
     return res.json({ chart });
   } catch (err) {
