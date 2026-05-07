@@ -12,12 +12,12 @@ const supabase = require('../config/supabase');
 const logger   = require('../config/logger');
 const { sendMail } = require('./emailService');
 
-// In-memory set of account IDs already alerted this "offline window"
-// so we don't spam every 15 minutes for the same account.
-const alertedAccounts = new Set();
+// In-memory map: account ID → timestamp when alert was last sent
+const alertedAccounts = new Map();
 
-const OFFLINE_THRESHOLD_MS = 60 * 60 * 1000; // 1 hour
-const CHECK_INTERVAL_MS    = 15 * 60 * 1000;  // every 15 minutes
+const OFFLINE_THRESHOLD_MS  = 60 * 60 * 1000;       // 1 hour
+const REPEAT_ALERT_MS       = 4 * 60 * 60 * 1000;   // re-alert after 4 hours if still offline
+const CHECK_INTERVAL_MS     = 15 * 60 * 1000;        // every 15 minutes
 
 const isWeekend = (date) => {
   const day = date.getDay(); // 0 = Sun, 6 = Sat
@@ -97,7 +97,9 @@ const runOfflineCheck = async () => {
       const silentMs = now - lastSync;
 
       if (silentMs > OFFLINE_THRESHOLD_MS) {
-        if (!alertedAccounts.has(acc.id)) {
+        const lastAlerted = alertedAccounts.get(acc.id);
+        const shouldAlert = !lastAlerted || (now - lastAlerted) >= REPEAT_ALERT_MS;
+        if (shouldAlert) {
           offline.push({
             ...acc,
             lastSyncedStr: lastSync.toUTCString(),
@@ -123,8 +125,8 @@ const runOfflineCheck = async () => {
 
     logger.warn(`offlineChecker: ${offline.length} account(s) offline — sending alert email`);
 
-    // Mark as alerted so we don't re-send
-    for (const acc of offline) alertedAccounts.add(acc.id);
+    // Mark as alerted with current timestamp
+    for (const acc of offline) alertedAccounts.set(acc.id, now);
 
     // Fetch all admin emails
     const { data: admins } = await supabase
