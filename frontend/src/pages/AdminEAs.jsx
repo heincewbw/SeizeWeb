@@ -15,6 +15,7 @@ const emptyForm = {
   status: 'Available',
   is_active: true,
   sort_order: 0,
+  total_investment_usd: '',
 };
 
 export default function AdminEAs() {
@@ -61,6 +62,7 @@ export default function AdminEAs() {
       status: ea.status || 'Available',
       is_active: !!ea.is_active,
       sort_order: ea.sort_order ?? 0,
+      total_investment_usd: ea.total_investment_usd != null ? ea.total_investment_usd : '',
     });
     setShowModal(true);
   };
@@ -220,11 +222,17 @@ export default function AdminEAs() {
                   }}
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">Total Investment (USD)</label>
+                  <input type="number" step="0.01" min="0" className="input-field" placeholder="e.g. 50000" value={form.total_investment_usd} onChange={(e) => setForm({ ...form, total_investment_usd: e.target.value })} />
+                </div>
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Tracking Start</label>
                   <input type="date" className="input-field" value={form.tracking_start} onChange={(e) => setForm({ ...form, tracking_start: e.target.value })} />
                 </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-slate-400 mb-1">Status</label>
                   <input className="input-field" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} />

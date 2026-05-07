@@ -35,7 +35,7 @@ const adminListEAs = async (_req, res) => {
 };
 
 const sanitize = (body) => {
-  const allowed = ['name', 'tagline', 'description', 'myfxbook_url', 'widget_url', 'widget_link', 'tracking_start', 'tags', 'status', 'is_active', 'sort_order'];
+  const allowed = ['name', 'tagline', 'description', 'myfxbook_url', 'widget_url', 'widget_link', 'tracking_start', 'tags', 'status', 'is_active', 'sort_order', 'total_investment_usd'];
   const out = {};
   for (const k of allowed) {
     if (body[k] === undefined) continue;
@@ -52,6 +52,10 @@ const sanitize = (body) => {
       out.is_active = !!body.is_active;
     } else if (k === 'sort_order') {
       out.sort_order = parseInt(body.sort_order) || 0;
+    } else if (k === 'total_investment_usd') {
+      out.total_investment_usd = body.total_investment_usd !== '' && body.total_investment_usd != null
+        ? parseFloat(body.total_investment_usd) || null
+        : null;
     } else {
       out[k] = body[k] === '' ? null : body[k];
     }

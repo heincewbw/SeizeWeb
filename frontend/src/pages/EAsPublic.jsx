@@ -9,6 +9,7 @@ import {
   ChartBarIcon,
   CalendarDaysIcon,
   ArrowRightOnRectangleIcon,
+  CurrencyDollarIcon,
 } from '@heroicons/react/24/outline';
 
 function formatDateLabel(value) {
@@ -151,6 +152,14 @@ export default function EAsPublic() {
                     <ChartBarIcon className="w-4 h-4 text-brand-400 flex-shrink-0" />
                     Live Myfxbook
                   </div>
+                  {ea.total_investment_usd != null && (
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <CurrencyDollarIcon className="w-4 h-4 text-green-400 flex-shrink-0" />
+                      <span className="text-green-400 font-semibold">
+                        ${Number(ea.total_investment_usd).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} invested
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {ea.myfxbook_url && (
