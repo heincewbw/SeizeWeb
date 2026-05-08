@@ -20,6 +20,10 @@ const mt4PushRoutes = require('./routes/mt4Push');
 const withdrawalRoutes = require('./routes/withdrawals');
 const adminRoutes = require('./routes/admin');
 const easRoutes = require('./routes/eas');
+const notificationRoutes = require('./routes/notifications');
+const depositRoutes = require('./routes/deposits');
+const referralRoutes = require('./routes/referrals');
+const ticketRoutes = require('./routes/tickets');
 const supabase = require('./config/supabase');
 const { startOfflineChecker } = require('./services/offlineChecker');
 
@@ -164,6 +168,10 @@ app.use('/api/mt4', mt4PushRoutes);
 app.use('/api/withdrawals', withdrawalRoutes);
 app.use('/api/eas', easRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/deposits', depositRoutes);
+app.use('/api/referrals', referralRoutes);
+app.use('/api/tickets', ticketRoutes);
 
 app.get('/health', (req, res) => {
   res.json({

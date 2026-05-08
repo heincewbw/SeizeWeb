@@ -17,7 +17,7 @@ const register = async (req, res) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const { email, password, full_name, phone } = req.body;
+  const { email, password, full_name, phone, referral_code } = req.body;
 
   try {
     const { data: existingUser } = await supabase
@@ -28,6 +28,17 @@ const register = async (req, res) => {
 
     if (existingUser) {
       return res.status(409).json({ error: 'Email already registered' });
+    }
+
+    // Resolve referral code to referrer id
+    let referredBy = null;
+    if (referral_code) {
+      const { data: referrer } = await supabase
+        .from('users')
+        .select('id')
+        .eq('referral_code', referral_code.toUpperCase())
+        .maybeSingle();
+      if (referrer) referredBy = referrer.id;
     }
 
     const saltRounds = 12;
@@ -42,6 +53,7 @@ const register = async (req, res) => {
         phone: phone || null,
         role: 'investor',
         is_active: true,
+        referred_by: referredBy,
       })
       .select('id, email, full_name, role, created_at')
       .single();
@@ -49,6 +61,11 @@ const register = async (req, res) => {
     if (error) {
       logger.error('Register error:', error);
       return res.status(500).json({ error: 'Failed to create account' });
+    }
+
+    // Record referral relationship
+    if (referredBy) {
+      await supabase.from('referrals').insert({ referrer_id: referredBy, referred_id: newUser.id }).select().maybeSingle();
     }
 
     const token = generateToken(newUser.id);

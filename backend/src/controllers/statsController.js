@@ -370,4 +370,75 @@ const getPortfolioShare = async (req, res) => {
   }
 };
 
-module.exports = { getSummary, getEquityChart, getSymbolBreakdown, getMonthlyGain, getPortfolioShare };
+// GET /api/stats/statement?month=&year=&account_id=
+// Returns CSV of all closed trades for the given month
+const getMonthlyStatement = async (req, res) => {
+  const { month, year, account_id } = req.query;
+
+  const m = parseInt(month);
+  const y = parseInt(year);
+  if (!m || !y || m < 1 || m > 12 || y < 2000) {
+    return res.status(400).json({ error: 'Valid month (1–12) and year are required' });
+  }
+
+  const startDate = new Date(y, m - 1, 1).toISOString();
+  const endDate   = new Date(y, m, 0, 23, 59, 59).toISOString();
+
+  try {
+    let query = supabase
+      .from('trade_history')
+      .select(
+        `ticket, symbol, type, lots, open_price, close_price,
+         profit, commission, swap, open_time, close_time, comment,
+         mt4_accounts(account_name, login, currency)`
+      )
+      .eq('user_id', req.user.id)
+      .not('type', 'in', '("BALANCE","CREDIT")')
+      .gte('close_time', startDate)
+      .lte('close_time', endDate)
+      .order('close_time', { ascending: true });
+
+    if (account_id) query = query.eq('mt4_account_id', account_id);
+
+    const { data: trades, error } = await query;
+    if (error) throw error;
+
+    const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    const headers = ['Ticket','Account','Symbol','Type','Lots','Open Price','Close Price','Profit','Commission','Swap','Net P&L','Open Time','Close Time','Comment'];
+    const rows = (trades || []).map((t) => {
+      const div = t.mt4_accounts?.currency === 'USC' ? 100 : 1;
+      const profit     = (Number(t.profit) || 0) / div;
+      const commission = (Number(t.commission) || 0) / div;
+      const swap       = (Number(t.swap) || 0) / div;
+      return [
+        t.ticket,
+        `"${t.mt4_accounts?.account_name || ''}"`,
+        t.symbol,
+        t.type,
+        t.lots,
+        t.open_price,
+        t.close_price,
+        profit.toFixed(2),
+        commission.toFixed(2),
+        swap.toFixed(2),
+        (profit + commission + swap).toFixed(2),
+        t.open_time  ? new Date(t.open_time).toISOString()  : '',
+        t.close_time ? new Date(t.close_time).toISOString() : '',
+        `"${(t.comment || '').replace(/"/g, "'")}"`,
+      ].join(',');
+    });
+
+    const csv = [headers.join(','), ...rows].join('\n');
+    const filename = `statement_${MONTH_NAMES[m - 1]}_${y}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(csv);
+  } catch (err) {
+    logger.error('getMonthlyStatement error:', err);
+    return res.status(500).json({ error: 'Failed to generate statement' });
+  }
+};
+
+module.exports = { getSummary, getEquityChart, getSymbolBreakdown, getMonthlyGain, getPortfolioShare, getMonthlyStatement };

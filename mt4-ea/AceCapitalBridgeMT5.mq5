@@ -18,7 +18,7 @@
 #define EA_VERSION "1.0"
 
 input string ServerUrl    = "https://acecapital.id"; // Backend server URL
-input string EaSecret     = "";                       // EA_SECRET dari Railway env
+input string EaSecret     = "12b2d69d4c2cc90248664926b04579872cb28a60f5cd8223";                       // EA_SECRET dari Railway env
 input string BridgeToken  = "";                       // Bridge token manual (kosongkan jika pakai EaSecret)
 input int    PushInterval = 300;                      // Push interval in seconds
 input bool   PushHistory  = true;                     // Send trade history

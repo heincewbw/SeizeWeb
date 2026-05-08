@@ -11,8 +11,12 @@ import EAs from '@/pages/EAs';
 import Analytics from '@/pages/Analytics';
 import Settings from '@/pages/Settings';
 import Withdrawals from '@/pages/Withdrawals';
+import Deposits from '@/pages/Deposits';
+import Referral from '@/pages/Referral';
+import Support from '@/pages/Support';
 import AdminUsers from '@/pages/AdminUsers';
 import AdminEAs from '@/pages/AdminEAs';
+import AdminRevenue from '@/pages/AdminRevenue';
 import EAsPublic from '@/pages/EAsPublic';
 import useAuthStore from '@/store/useAuthStore';
 
@@ -49,8 +53,12 @@ export default function App() {
         <Route path="eas" element={<EAs />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="withdrawals" element={<Withdrawals />} />
+        <Route path="deposits" element={<Deposits />} />
+        <Route path="referral" element={<Referral />} />
+        <Route path="support" element={<Support />} />
         <Route path="admin/users" element={<AdminUsers />} />
         <Route path="admin/eas" element={<AdminEAs />} />
+        <Route path="admin/revenue" element={<AdminRevenue />} />
         <Route path="settings" element={<Settings />} />
       </Route>
 

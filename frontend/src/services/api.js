@@ -84,6 +84,7 @@ export const easAPI = {
 // ─── Admin ────────────────────────────────────────────────────────────────
 export const adminAPI = {
   getUsersOverview: () => api.get('/api/admin/users-overview'),
+  getRevenue: () => api.get('/api/admin/revenue'),
   updateAccountMeta: (id, data) => api.put(`/api/admin/accounts/${id}`, data),
   addAccount: (data) => api.post('/api/admin/accounts', data),
   getToken: (login, server) => api.get(`/api/mt4/token?login=${login}&server=${encodeURIComponent(server)}`),
@@ -99,4 +100,36 @@ export const adminAPI = {
   createEA: (data) => api.post('/api/admin/eas', data),
   updateEA: (id, data) => api.put(`/api/admin/eas/${id}`, data),
   deleteEA: (id) => api.delete(`/api/admin/eas/${id}`),
+};
+
+// ─── Notifications ────────────────────────────────────────────────────────
+export const notificationsAPI = {
+  getAll: (params) => api.get('/api/notifications', { params }),
+  markAllRead: () => api.put('/api/notifications/read-all'),
+  markOneRead: (id) => api.put(`/api/notifications/${id}/read`),
+  delete: (id) => api.delete(`/api/notifications/${id}`),
+};
+
+// ─── Deposits ─────────────────────────────────────────────────────────────
+export const depositsAPI = {
+  getAll: (params) => api.get('/api/deposits', { params }),
+};
+
+// ─── Referrals ────────────────────────────────────────────────────────────
+export const referralsAPI = {
+  get: () => api.get('/api/referrals'),
+};
+
+// ─── Support Tickets ──────────────────────────────────────────────────────
+export const ticketsAPI = {
+  getAll: (params) => api.get('/api/tickets', { params }),
+  create: (data) => api.post('/api/tickets', data),
+  get: (id) => api.get(`/api/tickets/${id}`),
+  addMessage: (id, message) => api.post(`/api/tickets/${id}/messages`, { message }),
+  updateStatus: (id, status) => api.put(`/api/tickets/${id}/status`, { status }),
+};
+
+// ─── Monthly Statement ────────────────────────────────────────────────────
+export const statementAPI = {
+  download: (params) => api.get('/api/stats/statement', { params, responseType: 'blob' }),
 };

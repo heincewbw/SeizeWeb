@@ -132,7 +132,6 @@ export default function EAsPublic() {
                         src={ea.widget_url}
                         alt={`${ea.name} live performance widget`}
                         className="w-full h-auto block"
-                        style={{ marginTop: '-38px' }}
                         loading="lazy"
                         referrerPolicy="no-referrer"
                       />

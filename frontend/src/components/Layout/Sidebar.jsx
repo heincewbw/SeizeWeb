@@ -9,7 +9,11 @@ import {
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
   ArrowDownTrayIcon,
+  ArrowUpCircleIcon,
   UsersIcon,
+  UserGroupIcon,
+  ChatBubbleLeftRightIcon,
+  ChartBarSquareIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   XMarkIcon,
@@ -26,6 +30,9 @@ const navItems = [
   { to: '/eas', icon: CpuChipIcon, label: 'EAs' },
   { to: '/analytics', icon: ChartBarIcon, label: 'Analytics' },
   { to: '/withdrawals', icon: ArrowDownTrayIcon, label: 'Withdraw' },
+  { to: '/deposits', icon: ArrowUpCircleIcon, label: 'Deposits' },
+  { to: '/referral', icon: UserGroupIcon, label: 'Referral' },
+  { to: '/support', icon: ChatBubbleLeftRightIcon, label: 'Support' },
   { to: '/settings', icon: Cog6ToothIcon, label: 'Settings' },
 ];
 
@@ -166,6 +173,24 @@ export default function Sidebar({ desktopCollapsed, mobileOpen, onDesktopToggle,
             >
               <CpuChipIcon style={{ width: '18px', height: '18px' }} className="flex-shrink-0" />
               <span className={clsx('whitespace-nowrap', desktopCollapsed && 'lg:hidden')}>Manage EAs</span>
+            </NavLink>
+            <NavLink
+              to="/admin/revenue"
+              onClick={onMobileClose}
+              title={desktopCollapsed ? 'Revenue' : undefined}
+              className={({ isActive }) =>
+                clsx(
+                  'flex items-center rounded-lg text-sm font-medium transition-all duration-150',
+                  desktopCollapsed ? 'lg:justify-center lg:px-0 lg:py-2.5' : '',
+                  'gap-3 px-3 py-2.5',
+                  isActive
+                    ? 'bg-brand-500/15 text-brand-400 border border-brand-500/20'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                )
+              }
+            >
+              <ChartBarSquareIcon style={{ width: '18px', height: '18px' }} className="flex-shrink-0" />
+              <span className={clsx('whitespace-nowrap', desktopCollapsed && 'lg:hidden')}>Revenue</span>
             </NavLink>
           </>
         )}

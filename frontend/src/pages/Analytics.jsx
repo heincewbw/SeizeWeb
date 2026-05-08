@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { statsAPI, accountsAPI } from '@/services/api';
+import { statsAPI, accountsAPI, statementAPI } from '@/services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '@/utils/format';
 import {
@@ -56,6 +56,30 @@ export default function Analytics() {
   const [monthlyGain, setMonthlyGain] = useState([]);
   const [loading, setLoading] = useState(true);
   const [monthlyLoading, setMonthlyLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+
+  // Statement download
+  const handleDownloadStatement = async () => {
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+    setDownloading(true);
+    try {
+      const params = { month, year };
+      if (selectedAccount) params.account_id = selectedAccount;
+      const { data: blob } = await statementAPI.download(params);
+      const url = URL.createObjectURL(new Blob([blob]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `statement_${month}_${year}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Failed to download statement');
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   useEffect(() => {
     accountsAPI.getAll().then(({ data }) => setAccounts(data.accounts));
@@ -159,6 +183,14 @@ export default function Analytics() {
               </button>
             ))}
           </div>
+          <button
+            onClick={handleDownloadStatement}
+            disabled={downloading}
+            className="btn-secondary text-xs gap-1.5"
+            title="Download this month's trade statement as CSV"
+          >
+            {downloading ? '⏳' : '⬇️'} {downloading ? 'Downloading...' : 'Statement CSV'}
+          </button>
         </div>
       </div>
 

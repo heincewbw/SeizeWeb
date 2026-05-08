@@ -1,5 +1,6 @@
 ﻿const supabase = require('../config/supabase');
 const logger = require('../config/logger');
+const { createNotification } = require('../services/notificationService');
 
 // GET /api/withdrawals
 // User: sees only own. Admin: sees all (optional ?status filter)
@@ -106,7 +107,7 @@ const updateStatus = async (req, res) => {
   try {
     const { data: existing, error: fetchErr } = await supabase
       .from('withdrawals')
-      .select('id, status')
+      .select('id, status, user_id, amount, currency')
       .eq('id', id)
       .single();
 
@@ -120,6 +121,18 @@ const updateStatus = async (req, res) => {
       .single();
 
     if (error) throw error;
+
+    // Notify investor
+    const io = req.app.get('io');
+    const div = existing.currency === 'USC' ? 100 : 1;
+    const amount = (Number(existing.amount) || 0) / div;
+    const statusLabel = status === 'verified' ? 'diverifikasi ✓' : 'ditolak ✗';
+    await createNotification(existing.user_id, {
+      type: 'withdrawal_update',
+      title: 'Status Withdrawal Diperbarui',
+      message: `Withdrawal $${amount.toFixed(2)} telah ${statusLabel}`,
+      data: { withdrawal_id: id, status },
+    }, io);
 
     logger.info(`Withdrawal ${id} status updated to ${status} by admin ${req.user.id}`);
     return res.json({ message: 'Status berhasil diperbarui', withdrawal: data });

@@ -674,4 +674,62 @@ const sendInvoiceEmail = async (req, res) => {
   }
 };
 
-module.exports = { getUsersOverview, updateAccountMeta, addAccountForUser, deleteAccount, reassignAccount, testOfflineAlert, syncWithdrawals, updateCommissionRate, generateInvoice, sendInvoiceEmail };
+// GET /api/admin/revenue
+const getRevenueDashboard = async (req, res) => {
+  try {
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const monthStartISO = monthStart.toISOString();
+
+    const lastMonthStart = new Date(monthStart);
+    lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
+
+    const [
+      { data: accounts },
+      { data: users },
+      { count: totalUsers },
+      { count: newInvestors },
+      { data: monthDeposits },
+      { data: monthWithdrawals },
+    ] = await Promise.all([
+      supabase.from('mt4_accounts').select('equity, currency, initial_balance, user_id').eq('is_connected', true),
+      supabase.from('users').select('id, commission_rate').eq('role', 'investor'),
+      supabase.from('users').select('id', { count: 'exact', head: true }).eq('role', 'investor'),
+      supabase.from('users').select('id', { count: 'exact', head: true }).eq('role', 'investor').gte('created_at', monthStartISO),
+      supabase.from('trade_history').select('profit, mt4_accounts(currency)').eq('type', 'BALANCE').gt('profit', 0).gte('close_time', monthStartISO),
+      supabase.from('withdrawals').select('amount, currency').eq('status', 'verified').gte('created_at', monthStartISO),
+    ]);
+
+    const normalize = (val, currency) => (Number(val) || 0) / (currency === 'USC' ? 100 : 1);
+
+    const totalAum = (accounts || []).reduce((s, a) => s + normalize(a.equity, a.currency), 0);
+    const totalInitial = (accounts || []).reduce((s, a) => s + normalize(a.initial_balance, a.currency), 0);
+    const activeInvestors = new Set((accounts || []).map((a) => a.user_id)).size;
+
+    const commissionMap = Object.fromEntries((users || []).map((u) => [u.id, u.commission_rate || 0]));
+    const totalCommission = (accounts || []).reduce((s, a) => {
+      return s + normalize(a.initial_balance, a.currency) * (commissionMap[a.user_id] || 0) / 100;
+    }, 0);
+
+    const monthlyDeposits = (monthDeposits || []).reduce((s, d) => s + normalize(d.profit, d.mt4_accounts?.currency), 0);
+    const monthlyWithdrawals = (monthWithdrawals || []).reduce((s, w) => s + normalize(w.amount, w.currency), 0);
+
+    return res.json({
+      total_aum: totalAum,
+      total_initial: totalInitial,
+      active_investors: activeInvestors,
+      total_investors: totalUsers || 0,
+      total_commission_earned: totalCommission,
+      monthly_deposits: monthlyDeposits,
+      monthly_withdrawals: monthlyWithdrawals,
+      new_investors_this_month: newInvestors || 0,
+      net_monthly_flow: monthlyDeposits - monthlyWithdrawals,
+    });
+  } catch (err) {
+    logger.error('getRevenueDashboard error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+module.exports = { getUsersOverview, updateAccountMeta, addAccountForUser, deleteAccount, reassignAccount, testOfflineAlert, syncWithdrawals, updateCommissionRate, generateInvoice, sendInvoiceEmail, getRevenueDashboard };
