@@ -19,7 +19,7 @@ export default function AccountCard({ account, isAdmin, onSync, onDisconnect, on
     : balance > 0 ? (((equity - balance) / balance) * 100).toFixed(2) : 0;
   const floatingPL = account.profit || 0;
   const floatingPct = balance > 0 ? (((equity - balance) / balance) * 100).toFixed(2) : 0;
-  const isProfit = equity >= balance;
+  const isProfit = initialBalance > 0 ? equity > initialBalance : equity >= balance;
 
   const handleShowToken = async () => {
     if (bridgeToken) {
