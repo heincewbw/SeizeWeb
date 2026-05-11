@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { positionsAPI } from '@/services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '@/utils/format';
@@ -24,60 +24,37 @@ function toTVSymbol(rawSymbol) {
 
 // TradingView Advanced Chart widget + avg open price overlay
 function PositionChart({ groups }) {
-  const containerRef = useRef(null);
-
   // Pick symbol+type group with the most lots
   const dominant = useMemo(() => {
     if (!groups.length) return null;
     return [...groups].sort((a, b) => b.lots - a.lots)[0];
   }, [groups]);
 
-  useEffect(() => {
-    if (!dominant || !containerRef.current) return;
-    const el = containerRef.current;
-    el.innerHTML = '';
-
-    // TradingView widget needs this specific inner div to render the iframe into
-    const widgetDiv = document.createElement('div');
-    widgetDiv.className = 'tradingview-widget-container__widget';
-    widgetDiv.style.height = '100%';
-    widgetDiv.style.width = '100%';
-    el.appendChild(widgetDiv);
-
-    const script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-    script.async = true;
-    // TradingView reads config from script.text (textContent), not innerHTML
-    script.text = JSON.stringify({
-      autosize: true,
-      symbol: toTVSymbol(dominant.symbol),
-      interval: 'H1',
-      timezone: 'Asia/Jakarta',
-      theme: 'dark',
-      style: '1',
-      locale: 'en',
-      backgroundColor: 'rgba(15, 23, 42, 1)',
-      hide_top_toolbar: false,
-      hide_side_toolbar: false,
-      allow_symbol_change: false,
-      save_image: false,
-      calendar: false,
-      support_host: 'https://www.tradingview.com',
-    });
-
-    el.appendChild(script);
-    return () => { el.innerHTML = ''; };
-  }, [dominant?.symbol]);
-
   if (!dominant) return null;
 
+  const tvSymbol = toTVSymbol(dominant.symbol);
   const avgPrice = dominant.avgOpenPrice;
   const curPrice = dominant.currentPrice || avgPrice;
 
+  // Build TradingView widgetembed iframe URL — most reliable embed method in React SPAs
+  const params = new URLSearchParams({
+    symbol: tvSymbol,
+    interval: '60',           // H1
+    theme: 'dark',
+    style: '1',               // candlestick
+    locale: 'en',
+    timezone: 'Asia/Jakarta',
+    autosize: '1',
+    hide_side_toolbar: '0',
+    allow_symbol_change: '0',
+    save_image: '0',
+    hide_volume: '0',
+    withdateranges: '1',
+  });
+  const iframeSrc = `https://www.tradingview.com/widgetembed/?${params.toString()}`;
+
   // Estimate if avgPrice falls within TradingView chart's visible range.
   // H1 forex charts typically show ~1.5% of price vertically.
-  // Assume current price sits ~40% from the top of the visible range.
   const RANGE = 0.015;
   const topEst = curPrice * (1 + RANGE * 0.60);
   const botEst = curPrice * (1 - RANGE * 0.40);
@@ -122,7 +99,13 @@ function PositionChart({ groups }) {
 
       {/* Chart + overlay */}
       <div className="relative" style={{ height: 460 }}>
-        <div ref={containerRef} className="tradingview-widget-container w-full h-full" />
+        <iframe
+          key={tvSymbol}
+          src={iframeSrc}
+          title={`${dominant.symbol} chart`}
+          style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
+          allowFullScreen
+        />
 
         {/* Avg open price indicator */}
         {lineTopPct !== null ? (
