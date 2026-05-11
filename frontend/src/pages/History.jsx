@@ -1,28 +1,34 @@
 import { useEffect, useMemo, useState } from 'react';
 import { positionsAPI, accountsAPI } from '@/services/api';
+import useDashboardStore from '@/store/useDashboardStore';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '@/utils/format';
 import { ArrowPathIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 
 export default function History() {
-  const [trades, setTrades] = useState([]);
-  const [accounts, setAccounts] = useState([]);
+  // dailyRows from server — already aggregated, no client-side grouping needed
+  const [dailyRows, setDailyRows] = useState([]);
+  // Read accounts from Zustand store (populated by Dashboard) — fetch only if empty
+  const { accounts, setAccounts } = useDashboardStore();
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ account_id: '', from_date: '', to_date: '' });
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    accountsAPI.getAll().then(({ data }) => setAccounts(data.accounts));
+    if (accounts.length === 0) {
+      accountsAPI.getAll().then(({ data }) => setAccounts(data.accounts)).catch(() => {});
+    }
     loadHistory();
   }, []);
 
   const loadHistory = async () => {
     setLoading(true);
     try {
-      const params = { ...filters, limit: 5000 };
+      const params = { ...filters };
       Object.keys(params).forEach((k) => { if (!params[k]) delete params[k]; });
-      const { data } = await positionsAPI.getHistory(params);
-      setTrades(data.trades || []);
+      // getDailyHistory: backend aggregates by day — tiny response instead of 5000 raw rows
+      const { data } = await positionsAPI.getDailyHistory(params);
+      setDailyRows(data.daily || []);
     } catch {
       toast.error('Failed to load trade history');
     } finally {
@@ -52,38 +58,7 @@ export default function History() {
     }
   };
 
-  // Aggregate per day (UTC date from close_time)
-  const dailyRows = useMemo(() => {
-    const map = new Map();
-    for (const t of trades) {
-      if (!t.close_time) continue;
-      const dateKey = new Date(t.close_time).toISOString().slice(0, 10); // YYYY-MM-DD
-      const profit = Number(t.profit) || 0;
-      const commission = Number(t.commission) || 0;
-      const swap = Number(t.swap) || 0;
-      const net = profit + commission + swap;
-      const lots = Number(t.lots) || 0;
-
-      const row = map.get(dateKey) || {
-        date: dateKey,
-        trades: 0,
-        wins: 0,
-        losses: 0,
-        lots: 0,
-        profit: 0,
-        net: 0,
-      };
-      row.trades += 1;
-      if (net > 0) row.wins += 1;
-      else if (net < 0) row.losses += 1;
-      row.lots += lots;
-      row.profit += profit;
-      row.net += net;
-      map.set(dateKey, row);
-    }
-    return Array.from(map.values()).sort((a, b) => (a.date < b.date ? 1 : -1));
-  }, [trades]);
-
+  // Single pass over dailyRows to compute totals — no second useMemo needed
   const totals = useMemo(() => {
     return dailyRows.reduce(
       (acc, r) => {

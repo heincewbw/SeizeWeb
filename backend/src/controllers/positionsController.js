@@ -27,7 +27,30 @@ const getOpenPositions = async (req, res) => {
 
     const accountIds = accounts.map((a) => a.id);
 
-    // Read from DB (persistent across restarts)
+    // Cache-first: EA sends pre-aggregated positions to cache on every push.
+    // Prefer cache over DB because cache always has the current aggregated format.
+    // DB fallback handles the case where the server just restarted and cache is empty.
+    const allPositions = [];
+    let cacheHit = false;
+    for (const account of accounts) {
+      const cacheKey = `${account.login}:${account.server}`;
+      const cached = positionCache.get(cacheKey);
+      if (cached) {
+        cacheHit = true;
+        const divisor = account.currency === 'USC' ? 100 : 1;
+        allPositions.push(...cached.positions.map((p) => ({
+          ...p,
+          profit: (Number(p.profit) || 0) / divisor,
+          swap:   (Number(p.swap)   || 0) / divisor,
+          account_id: account.id,
+          login: account.login,
+          server: account.server,
+        })));
+      }
+    }
+    if (cacheHit) return res.json({ positions: allPositions });
+
+    // DB fallback (server just restarted — stale per-ticket rows until next EA push)
     let { data: dbPositions, error: posErr } = await supabase
       .from('open_positions')
       .select('*')
@@ -37,7 +60,6 @@ const getOpenPositions = async (req, res) => {
     if (posErr) throw posErr;
 
     if (dbPositions && dbPositions.length > 0) {
-      // Normalise field names to match frontend expectations
       const accountMap = Object.fromEntries(accounts.map((a) => [a.id, a]));
       const positions = dbPositions.map((p) => {
         const acc = accountMap[p.mt4_account_id];
@@ -62,23 +84,6 @@ const getOpenPositions = async (req, res) => {
       });
       return res.json({ positions });
     }
-
-    // Fall back to in-memory cache (first push after server start)
-    const allPositions = [];
-    for (const account of accounts) {
-      const cacheKey = `${account.login}:${account.server}`;
-      const cached = positionCache.get(cacheKey);
-      if (cached) {
-        allPositions.push(...cached.positions.map((p) => ({
-          ...p,
-          account_id: account.id,
-          login: account.login,
-          server: account.server,
-        })));
-      }
-    }
-
-    return res.json({ positions: allPositions });
   } catch (err) {
     logger.error('GetOpenPositions exception:', err);
     return res.status(500).json({ error: 'Failed to fetch positions' });
@@ -141,6 +146,59 @@ const getTradeHistory = async (req, res) => {
   }
 };
 
+// GET /api/positions/history/daily
+// Returns trade history pre-aggregated by day — avoids sending thousands of raw rows
+// to the frontend just to be grouped there. Frontend gets ~30-365 rows instead of up to 5000.
+const getTradeHistoryDaily = async (req, res) => {
+  const { account_id, from_date, to_date } = req.query;
+
+  try {
+    // Select only the columns needed for aggregation — much smaller payload than '*'
+    let query = supabase
+      .from('trade_history')
+      .select('profit, commission, swap, lots, close_time, mt4_accounts(currency)')
+      .eq('user_id', req.user.id)
+      .not('type', 'in', '("BALANCE","CREDIT")')
+      .order('close_time', { ascending: true });
+
+    if (account_id) query = query.eq('mt4_account_id', account_id);
+    if (from_date)  query = query.gte('close_time', from_date);
+    if (to_date)    query = query.lte('close_time', to_date);
+
+    const { data: trades, error } = await query;
+    if (error) throw error;
+
+    // Aggregate by date in Node — single pass, no client-side processing needed
+    const map = new Map();
+    for (const t of (trades || [])) {
+      const date = t.close_time ? t.close_time.slice(0, 10) : null;
+      if (!date) continue;
+      const divisor = t.mt4_accounts?.currency === 'USC' ? 100 : 1;
+      const profit     = (Number(t.profit)     || 0) / divisor;
+      const commission = (Number(t.commission) || 0) / divisor;
+      const swap       = (Number(t.swap)       || 0) / divisor;
+      const net        = profit + commission + swap;
+      const lots       = Number(t.lots) || 0;
+
+      const row = map.get(date) || { date, trades: 0, wins: 0, losses: 0, lots: 0, profit: 0, net: 0 };
+      row.trades++;
+      if (net > 0) row.wins++;
+      else if (net < 0) row.losses++;
+      row.lots   += lots;
+      row.profit += profit;
+      row.net    += net;
+      map.set(date, row);
+    }
+
+    // Newest day first (matches original History.jsx display order)
+    const daily = Array.from(map.values()).sort((a, b) => (a.date > b.date ? -1 : 1));
+    return res.json({ daily });
+  } catch (err) {
+    logger.error('GetTradeHistoryDaily exception:', err);
+    return res.status(500).json({ error: 'Failed to fetch daily history' });
+  }
+};
+
 // POST /api/positions/sync-history/:accountId
 const syncTradeHistory = async (req, res) => {
   const { accountId } = req.params;
@@ -173,4 +231,4 @@ const syncTradeHistory = async (req, res) => {
   }
 };
 
-module.exports = { getOpenPositions, getTradeHistory, syncTradeHistory };
+module.exports = { getOpenPositions, getTradeHistory, getTradeHistoryDaily, syncTradeHistory };

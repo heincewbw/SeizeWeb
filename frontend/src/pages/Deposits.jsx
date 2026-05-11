@@ -1,19 +1,21 @@
 import { useEffect, useState } from 'react';
 import { depositsAPI, accountsAPI } from '@/services/api';
+import useDashboardStore from '@/store/useDashboardStore';
 import toast from 'react-hot-toast';
 import { formatCurrency, formatDate } from '@/utils/format';
 import { ArrowUpCircleIcon } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 
 export default function Deposits() {
-  const [deposits, setDeposits] = useState([]);
-  const [accounts, setAccounts] = useState([]);
+  const { accounts, setAccounts } = useDashboardStore();
   const [filterAccount, setFilterAccount] = useState('');
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
+  const [deposits, setDeposits] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    accountsAPI.getAll().then(({ data }) => setAccounts(data.accounts || [])).catch(() => {});
+    if (accounts.length === 0) {
+      accountsAPI.getAll().then(({ data }) => setAccounts(data.accounts)).catch(() => {});
+    }
   }, []);
 
   useEffect(() => {

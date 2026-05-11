@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { statsAPI, accountsAPI, statementAPI } from '@/services/api';
+import useDashboardStore from '@/store/useDashboardStore';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '@/utils/format';
 import {
@@ -48,7 +49,7 @@ const MonthlyGainTooltip = ({ active, payload, label }) => {
 };
 
 export default function Analytics() {
-  const [accounts, setAccounts] = useState([]);
+  const { accounts, setAccounts } = useDashboardStore();
   const [selectedAccount, setSelectedAccount] = useState('');
   const [period, setPeriod] = useState('30d');
   const [equityChart, setEquityChart] = useState([]);
@@ -81,14 +82,22 @@ export default function Analytics() {
     }
   };
 
+  // Read accounts from Zustand store (populated by Dashboard) — fetch only if empty
   useEffect(() => {
-    accountsAPI.getAll().then(({ data }) => setAccounts(data.accounts));
+    if (accounts.length === 0) {
+      accountsAPI.getAll().then(({ data }) => setAccounts(data.accounts));
+    }
   }, []);
 
+  // Equity chart + symbol breakdown depend on both selectedAccount AND period
   useEffect(() => {
     loadAnalytics();
-    loadMonthly();
   }, [selectedAccount, period]);
+
+  // Monthly gain only depends on selectedAccount — don't re-fetch when period changes
+  useEffect(() => {
+    loadMonthly();
+  }, [selectedAccount]);
 
   const loadAnalytics = async () => {
     setLoading(true);

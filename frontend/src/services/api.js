@@ -55,6 +55,7 @@ export const positionsAPI = {
   getOpen: (accountId) =>
     api.get('/api/positions', { params: accountId ? { account_id: accountId } : {} }),
   getHistory: (params) => api.get('/api/positions/history', { params }),
+  getDailyHistory: (params) => api.get('/api/positions/history/daily', { params }),
   syncHistory: (accountId) => api.post(`/api/positions/sync-history/${accountId}`),
 };
 

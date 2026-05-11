@@ -20,21 +20,27 @@ export default function Dashboard() {
   const [portfolioShare, setPortfolioShare] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Fetch accounts only once — account list doesn't change while the user is on this page
   useEffect(() => {
-    loadDashboard();
+    if (accounts.length === 0) {
+      accountsAPI.getAll().then(({ data }) => setAccounts(data.accounts)).catch(() => {});
+    }
+  }, []);
+
+  // Refresh stats & chart whenever the selected account changes
+  useEffect(() => {
+    loadStats();
   }, [selectedAccountId]);
 
-  const loadDashboard = async () => {
+  const loadStats = async () => {
     setLoading(true);
     try {
-      const [accountsRes, summaryRes, chartRes, shareRes] = await Promise.all([
-        accountsAPI.getAll(),
+      const [summaryRes, chartRes, shareRes] = await Promise.all([
         statsAPI.getSummary(selectedAccountId),
         statsAPI.getEquityChart({ account_id: selectedAccountId, period: '30d' }),
         statsAPI.getPortfolioShare(),
       ]);
 
-      setAccounts(accountsRes.data.accounts);
       setSummary(summaryRes.data);
       setEquityChart(chartRes.data.chart);
       setPortfolioShare(shareRes.data);

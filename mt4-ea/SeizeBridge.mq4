@@ -26,18 +26,20 @@ double OP_BALANCE;
 bool inProgress = false;
 
 
-input string  ServerUrl    = "https://acecapital.id"; // Backend server URL
-input string  EaSecret     = "12b2d69d4c2cc90248664926b04579872cb28a60f5cd8223";                       // EA_SECRET dari Railway env (untuk auto-register)
-input string  BridgeToken  = "";                       // Bridge token manual (kosongkan jika pakai EaSecret)
-input int     PushInterval = 300;                      // Push interval in seconds
-input bool    PushHistory  = true;                     // Send trade history
-input int     MaxHistory   = 500;                      // Max history trades to send (0 = unlimited)
-input int     HistoryDays  = 90;                       // How many days back to send on first push
+input string  ServerUrl            = "https://acecapital.id"; // Backend server URL
+input string  EaSecret             = "12b2d69d4c2cc90248664926b04579872cb28a60f5cd8223"; // EA_SECRET dari Railway env
+input string  BridgeToken          = "";    // Bridge token manual (kosongkan jika pakai EaSecret)
+input int     PushInterval         = 300;   // Interval push posisi (detik)
+input bool    PushHistory          = true;  // Aktifkan push history
+input int     HistoryPushInterval  = 3600;  // Interval push history (detik) — pisah dari posisi agar lebih ringan
+input int     MaxHistory           = 200;   // Maks trade history per push (dikurangi agar payload lebih kecil)
+input int     HistoryDays          = 30;    // Berapa hari ke belakang saat push pertama
 
 // Global state
 datetime gLastPush        = 0;
 datetime gLastHistorySent = 0;
-string   gActiveToken     = "";   // token yang dipakai (manual atau auto-fetched)
+datetime gLastHistoryPush = 0;  // kapan terakhir kali history dikirim
+string   gActiveToken     = ""; // token yang dipakai (manual atau auto-fetched)
 bool     gTokenPending    = false; // true = token belum didapat, retry di timer
 
 // Global Variable key untuk cache token di MT4
@@ -171,17 +173,19 @@ void OnDeinit(const int reason)
 //--- Timer: push data meski tidak ada tick (weekend/pasar sepi)
 void OnTimer()
 {
-   if(inProgress) return; // guard sederhana
-   inProgress = true;
-
-   inProgress = false;
-   gLastPush = 0;  // reset agar OnTick langsung push
+   // MT4 single-threaded: OnTimer tidak akan interrupt OnTick, tapi guard ini
+   // mencegah re-entry jika ada panggilan manual atau nested call
+   if(inProgress) return;
+   gLastPush = 0;  // reset agar OnTick langsung push saat dipanggil
    OnTick();
 }
 
 //--- Tick: push data setiap PushInterval detik
 void OnTick()
 {
+   if(inProgress) return;
+   inProgress = true;
+
    // Retry fetch token jika belum berhasil saat init
    if(gTokenPending)
    {
@@ -198,23 +202,27 @@ void OnTick()
       else
       {
          Print("[SeizeBridge] Retry token gagal, coba lagi nanti...");
+         inProgress = false;
          return;
       }
    }
 
-   if(TimeLocal() - gLastPush < PushInterval) return;
+   if(TimeLocal() - gLastPush < PushInterval) { inProgress = false; return; }
    gLastPush = TimeLocal();
 
    string posJson  = BuildPositionsJson();
    string histJson = "[]";
 
-   if(PushHistory)
+   // Push history hanya setiap HistoryPushInterval detik — bukan setiap push posisi
+   // Ini membuat payload regular lebih kecil sehingga MT4 tidak sering Not Responding
+   if(PushHistory && (gLastHistoryPush == 0 || TimeLocal() - gLastHistoryPush >= HistoryPushInterval))
    {
       datetime fromTime = (gLastHistorySent == 0)
                           ? TimeLocal() - HistoryDays * 86400
                           : gLastHistorySent;
       histJson          = BuildHistoryJson(fromTime);
       gLastHistorySent  = TimeLocal();
+      gLastHistoryPush  = TimeLocal();
    }
 
    string login  = IntegerToString(AccountNumber());
@@ -240,6 +248,7 @@ void OnTick()
    payload += "}";
 
    SendPush(payload);
+   inProgress = false;
 }
 
 //--- Kirim HTTP POST ke backend
@@ -255,7 +264,8 @@ void SendPush(string payload)
    // NOTE: jangan ArrayResize(-1) — count eksplisit tidak menambah null terminator,
    // jadi resize akan memotong byte real (penutup '}' JSON)
 
-   int res = WebRequest("POST", url, headers, 5000, postData, resultData, resultHeaders);
+   // Timeout 2500ms — lebih singkat agar MT4 tidak freeze lama jika server lambat/cold start
+   int res = WebRequest("POST", url, headers, 2500, postData, resultData, resultHeaders);
 
    if(res == -1)
    {
@@ -278,37 +288,80 @@ void SendPush(string payload)
    Print("[SeizeBridge] Push OK. Positions=", OrdersTotal());
 }
 
-//--- Bangun JSON array open positions
+//--- Bangun JSON array posisi — sudah di-aggregate per symbol+type
+//    Frontend hanya butuh total lot & profit per grup, bukan per-ticket
+//    Ini mengurangi ukuran payload dari N baris menjadi M grup (M << N)
 string BuildPositionsJson()
 {
-   string arr  = "[";
-   bool   first = true;
+   // Kumpulkan unik symbol+type
+   string symbols[100];
+   string types[100];
+   double aggLots[100];
+   double aggWeightedPrice[100]; // sum(openPrice * lots) untuk hitung avg
+   double aggCurrentPrice[100];
+   double aggProfit[100];
+   double aggSwap[100];
+   int    aggCount[100];
+   int    groupCount = 0;
 
    for(int i = 0; i < OrdersTotal(); i++)
    {
       if(!OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) continue;
       if(OrderType() > OP_SELL) continue;
 
+      string sym  = OrderSymbol();
+      string typ  = TypeToStr(OrderType());
+      double lots = OrderLots();
+      double curP = (OrderType() == OP_BUY)
+                    ? MarketInfo(sym, MODE_BID)
+                    : MarketInfo(sym, MODE_ASK);
+
+      // Cari grup yang sudah ada
+      int g = -1;
+      for(int j = 0; j < groupCount; j++)
+      {
+         if(symbols[j] == sym && types[j] == typ) { g = j; break; }
+      }
+      // Buat grup baru jika belum ada (maks 100 grup)
+      if(g < 0 && groupCount < 100)
+      {
+         g = groupCount++;
+         symbols[g]          = sym;
+         types[g]            = typ;
+         aggLots[g]          = 0;
+         aggWeightedPrice[g] = 0;
+         aggCurrentPrice[g]  = 0;
+         aggProfit[g]        = 0;
+         aggSwap[g]          = 0;
+         aggCount[g]         = 0;
+      }
+      if(g < 0) continue; // overflow guard
+
+      aggWeightedPrice[g] += OrderOpenPrice() * lots;
+      aggLots[g]          += lots;
+      aggProfit[g]        += OrderProfit();
+      aggSwap[g]          += OrderSwap();
+      aggCurrentPrice[g]   = curP; // harga terakhir sudah cukup
+      aggCount[g]++;
+   }
+
+   // Serialize grup ke JSON — hanya field yang dibutuhkan frontend
+   string arr  = "[";
+   bool   first = true;
+   for(int j = 0; j < groupCount; j++)
+   {
       if(!first) arr += ",";
       first = false;
-
-      double curPrice = (OrderType() == OP_BUY)
-                        ? MarketInfo(OrderSymbol(), MODE_BID)
-                        : MarketInfo(OrderSymbol(), MODE_ASK);
-
+      double avgOpenPrice = (aggLots[j] > 0) ? aggWeightedPrice[j] / aggLots[j] : 0;
       arr += "{";
-      arr += "\"ticket\":"        + IntegerToString(OrderTicket());
-      arr += ",\"symbol\":\""     + EscapeJson(OrderSymbol()) + "\"";
-      arr += ",\"type\":\""       + TypeToStr(OrderType()) + "\"";
-      arr += ",\"lots\":"         + SafeNum(OrderLots(),        2);
-      arr += ",\"openPrice\":"    + SafeNum(OrderOpenPrice(),   5);
-      arr += ",\"currentPrice\":" + SafeNum(curPrice,           5);
-      arr += ",\"stopLoss\":"     + SafeNum(OrderStopLoss(),    5);
-      arr += ",\"takeProfit\":"   + SafeNum(OrderTakeProfit(),  5);
-      arr += ",\"profit\":"       + SafeNum(OrderProfit(), 2);
-      arr += ",\"swap\":"          + SafeNum(OrderSwap(),   2);
-      arr += ",\"openTime\":"     + IntegerToString(OrderOpenTime());
-      arr += ",\"comment\":\"\"";
+      arr += "\"symbol\":\""      + EscapeJson(symbols[j]) + "\"";
+      arr += ",\"type\":\""       + types[j] + "\"";
+      arr += ",\"count\":"        + IntegerToString(aggCount[j]);
+      arr += ",\"lots\":"         + SafeNum(aggLots[j],         2);
+      arr += ",\"openPrice\":"    + SafeNum(avgOpenPrice,        5);
+      arr += ",\"currentPrice\":" + SafeNum(aggCurrentPrice[j],  5);
+      arr += ",\"profit\":"       + SafeNum(aggProfit[j],        2);
+      arr += ",\"swap\":"         + SafeNum(aggSwap[j],          2);
       arr += "}";
    }
    arr += "]";

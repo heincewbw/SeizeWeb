@@ -30,7 +30,7 @@ function aggregatePositions(positions) {
     g.lots += p.lots || 0;
     g.profit += p.profit || 0;
     g.swap += p.swap || 0;
-    g.count++;
+    g.count += p.count || 1; // EA sends pre-aggregated count; fallback to 1 for legacy per-ticket rows
     // keep latest currentPrice
     g.currentPrice = p.currentPrice;
   }

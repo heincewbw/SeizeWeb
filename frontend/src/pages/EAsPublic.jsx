@@ -126,7 +126,7 @@ export default function EAsPublic() {
                       href={ea.widget_link || ea.myfxbook_url || ea.widget_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block overflow-hidden"
+                      className="block"
                     >
                     <img
                         src={ea.widget_url}
