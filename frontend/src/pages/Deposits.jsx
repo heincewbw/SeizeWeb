@@ -11,6 +11,7 @@ export default function Deposits() {
   const [filterAccount, setFilterAccount] = useState('');
   const [deposits, setDeposits] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
 
   useEffect(() => {
     if (accounts.length === 0) {
