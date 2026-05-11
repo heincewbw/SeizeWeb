@@ -92,7 +92,16 @@ app.use(helmet({
         directives: {
           'img-src': ["'self'", 'data:', 'https:'],
           'connect-src': ["'self'", 'https:', 'wss:'],
-          'frame-src': ["'self'", 'https://widget.myfxbook.com', 'https://www.myfxbook.com'],
+          // Allow TradingView widget script and its internal iframe
+          'script-src': ["'self'", "'unsafe-inline'", 'https://s3.tradingview.com', 'https://s.tradingview.com'],
+          'frame-src': [
+            "'self'",
+            'https://s.tradingview.com',
+            'https://www.tradingview.com',
+            'https://s3.tradingview.com',
+            'https://widget.myfxbook.com',
+            'https://www.myfxbook.com',
+          ],
         },
       }
     : false,
