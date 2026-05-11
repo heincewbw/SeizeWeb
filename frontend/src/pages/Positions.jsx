@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { positionsAPI } from '@/services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '@/utils/format';
-import { ArrowPathIcon, ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
 
 const typeColors = {
   BUY: 'badge-green',
@@ -38,22 +38,6 @@ function PositionChart({ groups }) {
 
   const iframeSrc = `/tv-chart.html?symbol=${encodeURIComponent(tvSymbol)}&interval=D`;
 
-  // For a 1D chart (1 year visible), price range is typically 6–10% of current price.
-  // Use ±4% around currentPrice as the estimated visible range so the avg price line
-  // renders inside the chart rather than as an out-of-range badge.
-  const RANGE = 0.08;
-  const topEst = curPrice * (1 + RANGE * 0.50);
-  const botEst = curPrice * (1 - RANGE * 0.50);
-
-  const above = avgPrice > topEst;
-  const below = avgPrice < botEst;
-  const inRange = !above && !below;
-
-  // Vertical % position of the avg price line (0 = top, 100 = bottom)
-  const lineTopPct = inRange
-    ? Math.max(3, Math.min(94, ((topEst - avgPrice) / (topEst - botEst)) * 100))
-    : null;
-
   return (
     <div className="card overflow-hidden p-0">
       {/* Header */}
@@ -83,8 +67,8 @@ function PositionChart({ groups }) {
         </div>
       </div>
 
-      {/* Chart + overlay */}
-      <div className="relative" style={{ height: 460 }}>
+      {/* Chart */}
+      <div style={{ height: 460 }}>
         <iframe
           key={tvSymbol}
           src={iframeSrc}
@@ -92,36 +76,6 @@ function PositionChart({ groups }) {
           style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
           allowFullScreen
         />
-
-        {/* Avg open price indicator */}
-        {lineTopPct !== null ? (
-          // Price is within estimated visible range — draw dashed line
-          <div
-            className="absolute left-0 right-0 flex items-center pointer-events-none z-10"
-            style={{ top: `${lineTopPct}%` }}
-          >
-            <div className="flex-1 border-t-2 border-dashed border-red-500" style={{ opacity: 0.85 }} />
-            <div className="bg-red-600 text-white text-[11px] font-mono px-2 py-0.5 rounded-l font-semibold whitespace-nowrap shadow-lg">
-              AVG&nbsp;{avgPrice.toFixed(5)}
-            </div>
-          </div>
-        ) : above ? (
-          // Avg price is above the visible chart range
-          <div className="absolute top-3 right-4 pointer-events-none z-10">
-            <div className="flex items-center gap-1.5 bg-red-600/90 text-white text-xs font-mono px-3 py-1.5 rounded-full shadow-lg">
-              <ArrowUpIcon className="w-3 h-3" />
-              AVG {avgPrice.toFixed(5)}
-            </div>
-          </div>
-        ) : (
-          // Avg price is below the visible chart range
-          <div className="absolute bottom-5 right-4 pointer-events-none z-10">
-            <div className="flex items-center gap-1.5 bg-red-600/90 text-white text-xs font-mono px-3 py-1.5 rounded-full shadow-lg">
-              <ArrowDownIcon className="w-3 h-3" />
-              AVG {avgPrice.toFixed(5)}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
