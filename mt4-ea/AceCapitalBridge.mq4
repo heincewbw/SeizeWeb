@@ -1,9 +1,9 @@
 //+------------------------------------------------------------------+
-//|  SeizeBridge.mq4                                                  |
+//|  AceCapitalBridge.mq4                                             |
 //|  MT4 Bridge Expert Advisor for AceCapital Platform                |
 //|                                                                   |
 //|  SETUP (Mode Auto — direkomendasikan untuk ratusan akun):         |
-//|  1. Copy ke: MetaTrader4/MQL4/Experts/SeizeBridge.mq4            |
+//|  1. Copy ke: MetaTrader4/MQL4/Experts/AceCapitalBridge.mq4       |
 //|  2. Compile di MetaEditor (F7)                                    |
 //|  3. Set ServerUrl = URL Railway kamu                              |
 //|  4. Set EaSecret  = nilai EA_SECRET dari Railway environment      |
@@ -16,10 +16,10 @@
 //|  Isi BridgeToken dari AceCapital UI > MT4 Accounts > hover > EA btn |
 //+------------------------------------------------------------------+
 #property copyright "AceCapital"
-#property version   "3.1"
+#property version   "3.2"
 #property strict
 
-#define EA_VERSION "3.1"
+#define EA_VERSION "3.2"
 
 // Input parameters
 double OP_BALANCE;
@@ -48,13 +48,13 @@ string GV_TOKEN_KEY = "";
 //--- Init
 int OnInit()
 {
-   GV_TOKEN_KEY = "SeizeBridgeToken_" + IntegerToString(AccountNumber()) + "_" + AccountServer();
+   GV_TOKEN_KEY = "AceCapitalBridgeToken_" + IntegerToString(AccountNumber()) + "_" + AccountServer();
 
    // Prioritas: BridgeToken manual > cached GV > auto-register via EaSecret
    if(StringLen(BridgeToken) > 0)
    {
       gActiveToken = BridgeToken;
-      Print("[SeizeBridge] Mode manual. Token dari input parameter.");
+      Print("[AceCapitalBridge] Mode manual. Token dari input parameter.");
    }
    else if(GlobalVariableCheck(GV_TOKEN_KEY))
    {
@@ -64,35 +64,35 @@ int OnInit()
       if(StringLen(cached) == 64)  // SHA256 hex = 64 chars
       {
          gActiveToken = cached;
-         Print("[SeizeBridge] Token di-load dari cache. Login=", AccountNumber());
+         Print("[AceCapitalBridge] Token di-load dari cache. Login=", AccountNumber());
       }
    }
    if(StringLen(gActiveToken) == 0)
    {
       if(StringLen(EaSecret) == 0)
       {
-         Alert("[SeizeBridge] Isi BridgeToken ATAU EaSecret! Ambil EaSecret dari Railway environment variables.");
+         Alert("[AceCapitalBridge] Isi BridgeToken ATAU EaSecret! Ambil EaSecret dari Railway environment variables.");
          return(INIT_FAILED);
       }
       // Auto-fetch token dari server
-      Print("[SeizeBridge] Mengambil token otomatis dari server...");
+      Print("[AceCapitalBridge] Mengambil token otomatis dari server...");
       gActiveToken = FetchToken();
       if(StringLen(gActiveToken) == 0)
       {
          // Jangan INIT_FAILED — EA tetap load, retry setiap timer tick
          gTokenPending = true;
-         Print("[SeizeBridge] Token belum didapat (koneksi gagal), akan retry setiap ", PushInterval, " detik...");
+         Print("[AceCapitalBridge] Token belum didapat (koneksi gagal), akan retry setiap ", PushInterval, " detik...");
       }
       else
       {
          // Cache ke file agar tidak perlu fetch ulang setiap restart
          WriteTokenFile(gActiveToken);
          GlobalVariableSet(GV_TOKEN_KEY, 1.0);
-         Print("[SeizeBridge] Token berhasil di-fetch dan di-cache. Login=", AccountNumber());
+         Print("[AceCapitalBridge] Token berhasil di-fetch dan di-cache. Login=", AccountNumber());
       }
    }
 
-   Print("[SeizeBridge] Mulai. Server=", ServerUrl, " Login=", AccountNumber());
+   Print("[AceCapitalBridge] Mulai. Server=", ServerUrl, " Login=", AccountNumber());
 
    // Timer fallback — push tetap berjalan meski tidak ada tick (weekend/pasar sepi)
    EventSetTimer(PushInterval);
@@ -120,24 +120,24 @@ string FetchToken()
    {
       int err = GetLastError();
       if(err == 4014)
-         Alert("[SeizeBridge] URL belum di-whitelist! Tambahkan '" + ServerUrl + "' di MT4: Tools > Options > Expert Advisors > Allow WebRequest. Lalu RESTART MT4.");
+         Alert("[AceCapitalBridge] URL belum di-whitelist! Tambahkan '" + ServerUrl + "' di MT4: Tools > Options > Expert Advisors > Allow WebRequest. Lalu RESTART MT4.");
       else
-         Alert("[SeizeBridge] WebRequest gagal! Error code: " + IntegerToString(err) + ". Cek koneksi internet.");
-      Print("[SeizeBridge] FetchToken WebRequest error=", err);
+         Alert("[AceCapitalBridge] WebRequest gagal! Error code: " + IntegerToString(err) + ". Cek koneksi internet.");
+      Print("[AceCapitalBridge] FetchToken WebRequest error=", err);
       return("");
    }
    if(res != 200)
    {
       string body = CharArrayToString(resultData);
-      Alert("[SeizeBridge] Server error HTTP=" + IntegerToString(res) + " Body=" + StringSubstr(body,0,100));
-      Print("[SeizeBridge] FetchToken gagal. HTTP=", res, " Body=", body);
+      Alert("[AceCapitalBridge] Server error HTTP=" + IntegerToString(res) + " Body=" + StringSubstr(body,0,100));
+      Print("[AceCapitalBridge] FetchToken gagal. HTTP=", res, " Body=", body);
       return("");
    }
 
    string body = CharArrayToString(resultData);
    // Parse "bridge_token" dari JSON response sederhana
    int idx = StringFind(body, "\"bridge_token\":\"");
-   if(idx < 0) { Print("[SeizeBridge] FetchToken: bridge_token tidak ditemukan dalam response"); return(""); }
+   if(idx < 0) { Print("[AceCapitalBridge] FetchToken: bridge_token tidak ditemukan dalam response"); return(""); }
    idx += 16;  // skip past "bridge_token":"
    int end = StringFind(body, "\"", idx);
    if(end < 0) return("");
@@ -147,14 +147,14 @@ string FetchToken()
 //--- Simpan token ke file lokal MT4 (MQL4/Files/)
 void WriteTokenFile(string token)
 {
-   string fname = "SeizeBridge_" + IntegerToString(AccountNumber()) + "_" + AccountServer() + ".tkn";
+   string fname = "AceCapitalBridge_" + IntegerToString(AccountNumber()) + "_" + AccountServer() + ".tkn";
    int h = FileOpen(fname, FILE_WRITE | FILE_TXT | FILE_ANSI);
    if(h != INVALID_HANDLE) { FileWriteString(h, token); FileClose(h); }
 }
 
 string ReadTokenFile()
 {
-   string fname = "SeizeBridge_" + IntegerToString(AccountNumber()) + "_" + AccountServer() + ".tkn";
+   string fname = "AceCapitalBridge_" + IntegerToString(AccountNumber()) + "_" + AccountServer() + ".tkn";
    if(!FileIsExist(fname)) return("");
    int h = FileOpen(fname, FILE_READ | FILE_TXT | FILE_ANSI);
    if(h == INVALID_HANDLE) return("");
@@ -167,7 +167,7 @@ string ReadTokenFile()
 void OnDeinit(const int reason)
 {
    EventKillTimer();
-   Print("[SeizeBridge] Berhenti. Reason=", reason);
+   Print("[AceCapitalBridge] Berhenti. Reason=", reason);
 }
 
 //--- Timer: push data meski tidak ada tick (weekend/pasar sepi)
@@ -189,7 +189,7 @@ void OnTick()
    // Retry fetch token jika belum berhasil saat init
    if(gTokenPending)
    {
-      Print("[SeizeBridge] Retry mengambil token...");
+      Print("[AceCapitalBridge] Retry mengambil token...");
       string t = FetchToken();
       if(StringLen(t) > 0)
       {
@@ -197,11 +197,11 @@ void OnTick()
          gTokenPending = false;
          WriteTokenFile(gActiveToken);
          GlobalVariableSet(GV_TOKEN_KEY, 1.0);
-         Print("[SeizeBridge] Token berhasil didapat setelah retry. Login=", AccountNumber());
+         Print("[AceCapitalBridge] Token berhasil didapat setelah retry. Login=", AccountNumber());
       }
       else
       {
-         Print("[SeizeBridge] Retry token gagal, coba lagi nanti...");
+         Print("[AceCapitalBridge] Retry token gagal, coba lagi nanti...");
          inProgress = false;
          return;
       }
@@ -271,21 +271,21 @@ void SendPush(string payload)
    {
       int err = GetLastError();
       if(err == 4014)
-         Print("[SeizeBridge] URL belum di-whitelist! Tambahkan '", ServerUrl,
+         Print("[AceCapitalBridge] URL belum di-whitelist! Tambahkan '", ServerUrl,
                "' di MT4: Tools > Options > Expert Advisors > Allow WebRequest.");
       else
-         Print("[SeizeBridge] WebRequest gagal. Error=", err);
+         Print("[AceCapitalBridge] WebRequest gagal. Error=", err);
       return;
    }
 
    if(res != 200)
    {
-      Print("[SeizeBridge] Push gagal. HTTP=", res,
+      Print("[AceCapitalBridge] Push gagal. HTTP=", res,
             " Response=", CharArrayToString(resultData));
       return;
    }
 
-   Print("[SeizeBridge] Push OK. Positions=", OrdersTotal());
+   Print("[AceCapitalBridge] Push OK. Positions=", OrdersTotal());
 }
 
 //--- Bangun JSON array posisi — sudah di-aggregate per symbol+type
