@@ -36,16 +36,14 @@ function PositionChart({ groups }) {
   const avgPrice = dominant.avgOpenPrice;
   const curPrice = dominant.currentPrice || avgPrice;
 
-  // Use our own static page (public/tv-chart.html) to host the TradingView widget.
-  // TradingView blocks cross-origin iframe embeds via X-Frame-Options on their widgetembed URL.
-  // Serving from the same origin sidesteps that restriction entirely.
-  const iframeSrc = `/tv-chart.html?symbol=${encodeURIComponent(tvSymbol)}&interval=60`;
+  const iframeSrc = `/tv-chart.html?symbol=${encodeURIComponent(tvSymbol)}&interval=D`;
 
-  // Estimate if avgPrice falls within TradingView chart's visible range.
-  // H1 forex charts typically show ~1.5% of price vertically.
-  const RANGE = 0.015;
-  const topEst = curPrice * (1 + RANGE * 0.60);
-  const botEst = curPrice * (1 - RANGE * 0.40);
+  // For a 1D chart (1 year visible), price range is typically 6–10% of current price.
+  // Use ±4% around currentPrice as the estimated visible range so the avg price line
+  // renders inside the chart rather than as an out-of-range badge.
+  const RANGE = 0.08;
+  const topEst = curPrice * (1 + RANGE * 0.50);
+  const botEst = curPrice * (1 - RANGE * 0.50);
 
   const above = avgPrice > topEst;
   const below = avgPrice < botEst;

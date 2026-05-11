@@ -20,7 +20,7 @@
   // when TradingView's embed code reads its JSON config.
   var p = new URLSearchParams(window.location.search);
   var symbol   = p.get('symbol')   || 'FX:EURUSD';
-  var interval = p.get('interval') || '60';
+  var interval = p.get('interval') || 'D';
 
   var cfg = JSON.stringify({
     autosize: true,
