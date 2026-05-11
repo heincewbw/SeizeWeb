@@ -37,11 +37,19 @@ function PositionChart({ groups }) {
     const el = containerRef.current;
     el.innerHTML = '';
 
-    // TradingView script embed — appending to el sets document.currentScript.parentNode = el
+    // TradingView widget needs this specific inner div to render the iframe into
+    const widgetDiv = document.createElement('div');
+    widgetDiv.className = 'tradingview-widget-container__widget';
+    widgetDiv.style.height = '100%';
+    widgetDiv.style.width = '100%';
+    el.appendChild(widgetDiv);
+
     const script = document.createElement('script');
+    script.type = 'text/javascript';
     script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
     script.async = true;
-    script.innerHTML = JSON.stringify({
+    // TradingView reads config from script.text (textContent), not innerHTML
+    script.text = JSON.stringify({
       autosize: true,
       symbol: toTVSymbol(dominant.symbol),
       interval: 'H1',
