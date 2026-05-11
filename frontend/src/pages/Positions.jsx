@@ -1,13 +1,154 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useMemo, useState } from 'react';
 import { positionsAPI } from '@/services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '@/utils/format';
-import { ArrowPathIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/outline';
 
 const typeColors = {
   BUY: 'badge-green',
   SELL: 'badge-red',
 };
+
+// Convert broker symbol (e.g. "EURUSDc", "XAUUSDm") to TradingView format
+function toTVSymbol(rawSymbol) {
+  // Strip non-alpha chars, keep first 6 uppercase letters as the pair
+  const clean = rawSymbol.replace(/[^A-Za-z]/g, '').toUpperCase();
+  const six = clean.slice(0, 6);
+  if (six === 'XAUUSD') return 'TVC:GOLD';
+  if (six === 'XAGUSD') return 'TVC:SILVER';
+  if (six === 'XPTUSD') return 'TVC:PLATINUM';
+  if (six === 'USOIL' || six === 'WTIUSD') return 'TVC:USOIL';
+  if (/^[A-Z]{6}$/.test(six)) return `FX:${six}`;
+  return `FX:${clean}`;
+}
+
+// TradingView Advanced Chart widget + avg open price overlay
+function PositionChart({ groups }) {
+  const containerRef = useRef(null);
+
+  // Pick symbol+type group with the most lots
+  const dominant = useMemo(() => {
+    if (!groups.length) return null;
+    return [...groups].sort((a, b) => b.lots - a.lots)[0];
+  }, [groups]);
+
+  useEffect(() => {
+    if (!dominant || !containerRef.current) return;
+    const el = containerRef.current;
+    el.innerHTML = '';
+
+    // TradingView script embed — appending to el sets document.currentScript.parentNode = el
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      autosize: true,
+      symbol: toTVSymbol(dominant.symbol),
+      interval: 'H1',
+      timezone: 'Asia/Jakarta',
+      theme: 'dark',
+      style: '1',
+      locale: 'en',
+      backgroundColor: 'rgba(15, 23, 42, 1)',
+      hide_top_toolbar: false,
+      hide_side_toolbar: false,
+      allow_symbol_change: false,
+      save_image: false,
+      calendar: false,
+      support_host: 'https://www.tradingview.com',
+    });
+
+    el.appendChild(script);
+    return () => { el.innerHTML = ''; };
+  }, [dominant?.symbol]);
+
+  if (!dominant) return null;
+
+  const avgPrice = dominant.avgOpenPrice;
+  const curPrice = dominant.currentPrice || avgPrice;
+
+  // Estimate if avgPrice falls within TradingView chart's visible range.
+  // H1 forex charts typically show ~1.5% of price vertically.
+  // Assume current price sits ~40% from the top of the visible range.
+  const RANGE = 0.015;
+  const topEst = curPrice * (1 + RANGE * 0.60);
+  const botEst = curPrice * (1 - RANGE * 0.40);
+
+  const above = avgPrice > topEst;
+  const below = avgPrice < botEst;
+  const inRange = !above && !below;
+
+  // Vertical % position of the avg price line (0 = top, 100 = bottom)
+  const lineTopPct = inRange
+    ? Math.max(3, Math.min(94, ((topEst - avgPrice) / (topEst - botEst)) * 100))
+    : null;
+
+  return (
+    <div className="card overflow-hidden p-0">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700 flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <span className="font-bold text-slate-100 text-base">{dominant.symbol}</span>
+          <span className={typeColors[dominant.type] || 'badge-yellow'}>{dominant.type}</span>
+          <span className="text-xs text-slate-500">
+            {dominant.lots.toFixed(2)} lots &middot; {dominant.count} position{dominant.count !== 1 ? 's' : ''} &middot; largest exposure
+          </span>
+        </div>
+        <div className="flex items-center gap-6">
+          <div>
+            <p className="text-xs text-slate-500 mb-0.5">Avg Open</p>
+            <p className="font-mono text-red-400 font-semibold text-sm">{avgPrice.toFixed(5)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-slate-500 mb-0.5">Current</p>
+            <p className="font-mono text-slate-200 font-semibold text-sm">{curPrice.toFixed(5)}</p>
+          </div>
+          <div>
+            <p className="text-xs text-slate-500 mb-0.5">Floating P/L</p>
+            <p className={`font-mono font-semibold text-sm ${dominant.profit >= 0 ? 'text-brand-400' : 'text-danger-400'}`}>
+              {formatCurrency(dominant.profit)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Chart + overlay */}
+      <div className="relative" style={{ height: 460 }}>
+        <div ref={containerRef} className="tradingview-widget-container w-full h-full" />
+
+        {/* Avg open price indicator */}
+        {lineTopPct !== null ? (
+          // Price is within estimated visible range — draw dashed line
+          <div
+            className="absolute left-0 right-0 flex items-center pointer-events-none z-10"
+            style={{ top: `${lineTopPct}%` }}
+          >
+            <div className="flex-1 border-t-2 border-dashed border-red-500" style={{ opacity: 0.85 }} />
+            <div className="bg-red-600 text-white text-[11px] font-mono px-2 py-0.5 rounded-l font-semibold whitespace-nowrap shadow-lg">
+              AVG&nbsp;{avgPrice.toFixed(5)}
+            </div>
+          </div>
+        ) : above ? (
+          // Avg price is above the visible chart range
+          <div className="absolute top-3 right-4 pointer-events-none z-10">
+            <div className="flex items-center gap-1.5 bg-red-600/90 text-white text-xs font-mono px-3 py-1.5 rounded-full shadow-lg">
+              <ArrowUpIcon className="w-3 h-3" />
+              AVG {avgPrice.toFixed(5)}
+            </div>
+          </div>
+        ) : (
+          // Avg price is below the visible chart range
+          <div className="absolute bottom-5 right-4 pointer-events-none z-10">
+            <div className="flex items-center gap-1.5 bg-red-600/90 text-white text-xs font-mono px-3 py-1.5 rounded-full shadow-lg">
+              <ArrowDownIcon className="w-3 h-3" />
+              AVG {avgPrice.toFixed(5)}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function aggregatePositions(positions) {
   const map = {};
@@ -141,6 +282,11 @@ export default function Positions() {
           </table>
         </div>
       </div>
+
+      {/* TradingView chart for dominant symbol */}
+      {!loading && grouped.length > 0 && (
+        <PositionChart groups={grouped} />
+      )}
     </div>
   );
 }
