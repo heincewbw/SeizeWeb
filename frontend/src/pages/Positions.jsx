@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { positionsAPI } from '@/services/api';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '@/utils/format';
