@@ -36,22 +36,10 @@ function PositionChart({ groups }) {
   const avgPrice = dominant.avgOpenPrice;
   const curPrice = dominant.currentPrice || avgPrice;
 
-  // Build TradingView widgetembed iframe URL — most reliable embed method in React SPAs
-  const params = new URLSearchParams({
-    symbol: tvSymbol,
-    interval: '60',           // H1
-    theme: 'dark',
-    style: '1',               // candlestick
-    locale: 'en',
-    timezone: 'Asia/Jakarta',
-    autosize: '1',
-    hide_side_toolbar: '0',
-    allow_symbol_change: '0',
-    save_image: '0',
-    hide_volume: '0',
-    withdateranges: '1',
-  });
-  const iframeSrc = `https://www.tradingview.com/widgetembed/?${params.toString()}`;
+  // Use our own static page (public/tv-chart.html) to host the TradingView widget.
+  // TradingView blocks cross-origin iframe embeds via X-Frame-Options on their widgetembed URL.
+  // Serving from the same origin sidesteps that restriction entirely.
+  const iframeSrc = `/tv-chart.html?symbol=${encodeURIComponent(tvSymbol)}&interval=60`;
 
   // Estimate if avgPrice falls within TradingView chart's visible range.
   // H1 forex charts typically show ~1.5% of price vertically.
