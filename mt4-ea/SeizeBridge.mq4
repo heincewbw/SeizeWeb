@@ -16,10 +16,10 @@
 //|  Isi BridgeToken dari AceCapital UI > MT4 Accounts > hover > EA btn |
 //+------------------------------------------------------------------+
 #property copyright "AceCapital"
-#property version   "3.1"
+#property version   "3.2"
 #property strict
 
-#define EA_VERSION "3.1"
+#define EA_VERSION "3.2"
 
 // Input parameters
 double OP_BALANCE;
@@ -218,9 +218,13 @@ void OnTick()
    // Ini membuat payload regular lebih kecil sehingga MT4 tidak sering Not Responding
    if(PushHistory && (gLastHistoryPush == 0 || TimeLocal() - gLastHistoryPush >= HistoryPushInterval))
    {
+      // PENTING: fromTime harus pakai TimeCurrent() (server time) karena
+      // OrderCloseTime() juga pakai server time. TimeLocal() berbeda timezone
+      // dengan server broker (misal: WIB UTC+7 vs Exness EET UTC+3 = selisih 4 jam),
+      // yang menyebabkan semua history baru terfilter keluar setelah push pertama.
       datetime fromTime = (gLastHistorySent == 0)
-                          ? TimeLocal() - HistoryDays * 86400
-                          : gLastHistorySent;
+                          ? TimeCurrent() - HistoryDays * 86400
+                          : gLastHistorySent - 300;  // 5 menit buffer agar tidak ada yang terlewat
       histJson       = BuildHistoryJson(fromTime);
       sendingHistory = true;
       // NOTE: gLastHistorySent dan gLastHistoryPush di-update SETELAH push sukses
@@ -253,8 +257,8 @@ void OnTick()
    // Hanya maju gLastHistorySent jika push berhasil — jika gagal, retry di interval berikutnya
    if(pushOk && sendingHistory)
    {
-      gLastHistorySent = TimeLocal();
-      gLastHistoryPush = TimeLocal();
+      gLastHistorySent = TimeCurrent(); // server time — harus konsisten dengan OrderCloseTime()
+      gLastHistoryPush = TimeLocal();   // local time — untuk interval check (TimeLocal() - gLastHistoryPush)
    }
    inProgress = false;
 }
