@@ -17,6 +17,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   XMarkIcon,
+  BanknotesIcon,
 } from '@heroicons/react/24/outline';
 import useAuthStore from '@/store/useAuthStore';
 import { useNavigate } from 'react-router-dom';
@@ -191,6 +192,24 @@ export default function Sidebar({ desktopCollapsed, mobileOpen, onDesktopToggle,
             >
               <ChartBarSquareIcon style={{ width: '18px', height: '18px' }} className="flex-shrink-0" />
               <span className={clsx('whitespace-nowrap', desktopCollapsed && 'lg:hidden')}>Revenue</span>
+            </NavLink>
+            <NavLink
+              to="/admin/withdrawals"
+              onClick={onMobileClose}
+              title={desktopCollapsed ? 'User Withdrawals' : undefined}
+              className={({ isActive }) =>
+                clsx(
+                  'flex items-center rounded-lg text-sm font-medium transition-all duration-150',
+                  desktopCollapsed ? 'lg:justify-center lg:px-0 lg:py-2.5' : '',
+                  'gap-3 px-3 py-2.5',
+                  isActive
+                    ? 'bg-brand-500/15 text-brand-400 border border-brand-500/20'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
+                )
+              }
+            >
+              <BanknotesIcon style={{ width: '18px', height: '18px' }} className="flex-shrink-0" />
+              <span className={clsx('whitespace-nowrap', desktopCollapsed && 'lg:hidden')}>User Withdrawals</span>
             </NavLink>
           </>
         )}

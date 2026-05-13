@@ -17,6 +17,7 @@ import Support from '@/pages/Support';
 import AdminUsers from '@/pages/AdminUsers';
 import AdminEAs from '@/pages/AdminEAs';
 import AdminRevenue from '@/pages/AdminRevenue';
+import AdminWithdrawals from '@/pages/AdminWithdrawals';
 import EAsPublic from '@/pages/EAsPublic';
 import useAuthStore from '@/store/useAuthStore';
 
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="admin/users" element={<AdminUsers />} />
         <Route path="admin/eas" element={<AdminEAs />} />
         <Route path="admin/revenue" element={<AdminRevenue />} />
+        <Route path="admin/withdrawals" element={<AdminWithdrawals />} />
         <Route path="settings" element={<Settings />} />
       </Route>
 
