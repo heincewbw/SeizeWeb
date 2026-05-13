@@ -206,7 +206,7 @@ const getSymbolBreakdown = async (req, res) => {
 };
 
 // GET /api/stats/monthly-gain
-// Monthly gain = (endBalance + withdrawalsInMonth - startBalance) / initialBalance * 100
+// Monthly gain = (endBalance + withdrawalsInMonth - startBalance) / startBalance * 100
 // where startBalance = end of previous month (or initial_balance if first month)
 const getMonthlyGain = async (req, res) => {
   const { account_id } = req.query;
@@ -309,7 +309,7 @@ const getMonthlyGain = async (req, res) => {
       }
       const wd = wdPerMonth[key] || 0;
       const profit = totalEnd + wd - prevTotalEnd;
-      const gainPct = totalInitial > 0 ? (profit / totalInitial) * 100 : 0;
+      const gainPct = prevTotalEnd > 0 ? (profit / prevTotalEnd) * 100 : 0;
 
       const [year, month] = key.split('-');
       monthly.push({
