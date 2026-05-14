@@ -110,6 +110,35 @@ const getEquityChart = async (req, res) => {
       return res.json({ chart: [] });
     }
 
+    // Fetch ALL withdrawals (from account inception) so cumulative sum is accurate
+    // regardless of which chart period is selected.
+    let wdQuery = supabase
+      .from('withdrawals')
+      .select('amount, currency, close_time')
+      .eq('user_id', req.user.id)
+      .in('status', ['detected', 'verified'])
+      .not('close_time', 'is', null)
+      .order('close_time', { ascending: true });
+    if (account_id) wdQuery = wdQuery.eq('mt4_account_id', account_id);
+
+    const { data: withdrawals } = await wdQuery;
+
+    // Sorted list of { timeMs, amount (normalized USD) }
+    const wdList = (withdrawals || []).map((w) => ({
+      timeMs: new Date(w.close_time).getTime(),
+      amount: (Number(w.amount) || 0) / (w.currency === 'USC' ? 100 : 1),
+    }));
+
+    // Cumulative withdrawals up to (and including) a given timestamp
+    const cumulativeWd = (upToMs) => {
+      let total = 0;
+      for (const w of wdList) {
+        if (w.timeMs <= upToMs) total += w.amount;
+        else break;
+      }
+      return total;
+    };
+
     // Normalize USC values in snapshots
     const normSnap = (snap) => {
       const divisor = snap.mt4_accounts?.currency === 'USC' ? 100 : 1;
@@ -121,9 +150,15 @@ const getEquityChart = async (req, res) => {
       };
     };
 
-    // If single account selected, return normalized snapshots
+    // If single account selected, return normalized snapshots with withdrawal adjustment
     if (account_id) {
-      return res.json({ chart: snapshots.map(normSnap) });
+      return res.json({
+        chart: snapshots.map((snap) => {
+          const n = normSnap(snap);
+          const cumWd = cumulativeWd(new Date(snap.created_at).getTime());
+          return { ...n, balance: n.balance + cumWd, equity: n.equity + cumWd };
+        }),
+      });
     }
 
     // Multi-account: aggregate by hour bucket, sum equity+balance across accounts
@@ -156,9 +191,13 @@ const getEquityChart = async (req, res) => {
         balance += snap.balance || 0;
         profit  += snap.profit  || 0;
       }
+      const created_at = Object.values(accountSnaps)[0].created_at;
+      const cumWd = cumulativeWd(new Date(created_at).getTime());
       return {
-        created_at: Object.values(accountSnaps)[0].created_at,
-        equity, balance, profit,
+        created_at,
+        equity:  equity  + cumWd,
+        balance: balance + cumWd,
+        profit,
       };
     });
 
