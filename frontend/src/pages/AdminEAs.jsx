@@ -56,7 +56,7 @@ export default function AdminEAs() {
       description: ea.description || '',
       myfxbook_url: ea.myfxbook_url || '',
       widget_url: ea.widget_url || '',
-      widget_link: ea.widget_link || '',
+      widget_link: ea.myfxbook_url || '',  // always mirrors myfxbook_url
       tracking_start: ea.tracking_start ? ea.tracking_start.slice(0, 10) : '',
       tags: (ea.tags || []).join(', '),
       status: ea.status || 'Available',
@@ -206,7 +206,7 @@ export default function AdminEAs() {
               </div>
               <div>
                 <label className="block text-xs text-slate-400 mb-1">Myfxbook URL</label>
-                <input className="input-field" placeholder="https://www.myfxbook.com/portfolio/..." value={form.myfxbook_url} onChange={(e) => setForm({ ...form, myfxbook_url: e.target.value })} />
+                <input className="input-field" placeholder="https://www.myfxbook.com/portfolio/..." value={form.myfxbook_url} onChange={(e) => setForm({ ...form, myfxbook_url: e.target.value, widget_link: e.target.value })} />
               </div>
               <div>
                 <label className="block text-xs text-slate-400 mb-1">
@@ -218,11 +218,10 @@ export default function AdminEAs() {
                   onChange={(e) => {
                     const html = e.target.value;
                     const srcMatch = html.match(/<img[^>]*\bsrc=["']([^"']+)["']/i);
-                    const hrefMatch = html.match(/<a[^>]*\bhref=["']([^"']+)["']/i);
                     setForm((f) => ({
                       ...f,
                       widget_url: srcMatch ? srcMatch[1].replace(/&amp;/g, '&') : f.widget_url,
-                      widget_link: hrefMatch ? hrefMatch[1].replace(/&amp;/g, '&') : f.widget_link,
+                      // widget_link selalu mengikuti myfxbook_url, tidak diambil dari HTML
                     }));
                   }}
                 />
